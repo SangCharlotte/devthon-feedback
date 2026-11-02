@@ -1,4 +1,4 @@
 -r requirements.txt
-pytest==9.1.1
+pytest==9.2.0
 ruff==0.8.4
 httpx2==2.16.0  # also installed by anthropic; pinned here for the test client
