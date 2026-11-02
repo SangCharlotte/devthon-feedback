@@ -9,14 +9,14 @@ from app.routers import ai, alerts, auth, feedback, insights, sms, staff
 
 app = FastAPI(title="Company X Feedback API", version="0.1.0")
 
-# Allow the Next.js app (a different origin) to call this API from the browser.
+# Configure cross-origin resources sharing for frontend applications.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[get_settings().frontend_origin],
     allow_methods=["*"],
     allow_headers=["*"],
 )
-# Added last = runs first: work out the real visitor IP before anything else looks at it.
+# Resolve downstream client IP addresses before route processing.
 app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=get_settings().trusted_proxies)
 
 app.include_router(feedback.router)
