@@ -1,5 +1,5 @@
 # One image for dev, CI and production. Dev/CI pass INSTALL_DEV=true to add pytest + ruff.
-FROM python:3.12-slim
+FROM python:3.14-slim
 
 # Don't write .pyc files; flush logs straight to the terminal.
 ENV PYTHONDONTWRITEBYTECODE=1 \
