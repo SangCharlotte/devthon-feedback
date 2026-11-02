@@ -1,0 +1,242 @@
+# The full delivery pipeline from the brief (section 06):
+#   01 Commit (branch -> PR)  02 Lint  03 Test  04 Build  05 Scan
+#   06 Migrate  07 Staging (auto)  08 Production (manual approval)
+#
+# Pull requests run steps 02-06 as checks: nothing reaches main unless they pass.
+# A merge to main runs everything again, publishes the images, deploys to
+# staging, then waits for a manager to approve production.
+name: Pipeline
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# Least privilege: jobs only get extra permissions where they ask for them.
+permissions:
+  contents: read
+
+# A newer push to the same PR cancels the older run; main always finishes.
+concurrency:
+  group: pipeline-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  # ---------- 02 Lint ----------
+  lint-backend:
+    name: 02 Lint · backend (Ruff)
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements*.txt
+      - run: pip install -r requirements-dev.txt
+      - run: ruff check --output-format=github .
+      - run: ruff format --check .
+
+  lint-frontend:
+    name: 02 Lint · frontend (ESLint + types)
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+
+  # ---------- 03 Test ----------
+  test-backend:
+    name: 03 Test · backend (pytest + Postgres)
+    needs: lint-backend
+    runs-on: ubuntu-24.04
+    # A real, throwaway Postgres for this job only - the same engine as production.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: feedback
+          POSTGRES_PASSWORD: ci-only-password # not a secret: dies with the job
+          POSTGRES_DB: feedback
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U feedback"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql+psycopg://feedback:ci-only-password@localhost:5432/feedback
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements*.txt
+      - run: pip install -r requirements-dev.txt
+      - run: pytest -q
+
+  test-frontend:
+    name: 03 Test · frontend (Vitest)
+    needs: lint-frontend
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm test
+
+  # ---------- 04 Build ----------
+  build:
+    name: 04 Build · ${{ matrix.service }} image
+    needs: [test-backend, test-frontend]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write # push to GitHub Container Registry (only used on main)
+    strategy:
+      matrix:
+        service: [backend, frontend]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Image name (registry names must be lowercase)
+        id: image
+        run: echo "name=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/feedback-${{ matrix.service }}" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - if: github.event_name == 'push'
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      # PRs only prove the image builds; main also pushes it, tagged with the commit SHA.
+      # Staging and production then run that exact image: build once, promote it.
+      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: ${{ matrix.service }}
+          push: ${{ github.event_name == 'push' }}
+          tags: |
+            ${{ steps.image.outputs.name }}:${{ github.sha }}
+            ${{ steps.image.outputs.name }}:main
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+
+  # ---------- 05 Scan ----------
+  # Independent of the build, so it runs in parallel with lint for fast feedback.
+  scan:
+    name: 05 Scan · dependencies & secrets
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # full history: a secret deleted in a later commit is still leaked
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22"
+      - name: Python dependencies (pip-audit)
+        run: |
+          pip install pip-audit==2.9.0
+          pip-audit -r backend/requirements.txt -r backend/requirements-dev.txt
+      - name: npm dependencies (shipped code only)
+        working-directory: frontend
+        # Dev-only tools (ESLint etc.) never reach users; their advisories are reviewed by hand.
+        run: npm audit --omit=dev --audit-level=high
+      - name: Secrets in git history (gitleaks)
+        env:
+          GITLEAKS_VERSION: 8.30.1
+        run: |
+          base="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}"
+          tarball="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl -sSfLO "$base/$tarball" -O "$base/gitleaks_${GITLEAKS_VERSION}_checksums.txt"
+          # Verify the download before running it.
+          grep " $tarball\$" "gitleaks_${GITLEAKS_VERSION}_checksums.txt" | sha256sum --check -
+          tar -xzf "$tarball" gitleaks
+          ./gitleaks git --redact --verbose --exit-code 1 .
+
+  # ---------- 06 Migrate ----------
+  migrations:
+    name: 06 Migrate · check migrations
+    needs: lint-backend
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: feedback
+          POSTGRES_PASSWORD: ci-only-password
+          POSTGRES_DB: feedback
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U feedback"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql+psycopg://feedback:ci-only-password@localhost:5432/feedback
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements*.txt
+      - run: pip install -r requirements.txt
+      - name: Apply every migration to an empty database
+        run: alembic upgrade head
+      - name: Models and migrations agree (fails if a migration was forgotten)
+        run: alembic check
+      - name: Every migration can be rolled back, then re-applied
+        run: alembic downgrade base && alembic upgrade head
+      # The real migration runs on each server during deploy (deploy/deploy.sh).
+
+  # ---------- 07 Staging ----------
+  staging:
+    name: 07 Staging
+    needs: [build, scan, migrations]
+    # Only for main, and only once a server is configured (repo variable DEPLOY_ENABLED=true).
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true'
+    permissions:
+      contents: read
+      packages: read
+    uses: ./.github/workflows/deploy.yml
+    with:
+      environment: staging
+    secrets: inherit
+
+  # ---------- 08 Production ----------
+  production:
+    name: 08 Production
+    needs: staging
+    permissions:
+      contents: read
+      packages: read
+    # The "production" environment requires a reviewer, so this job pauses
+    # until a manager clicks "Approve" in GitHub. That's the manual gate.
+    uses: ./.github/workflows/deploy.yml
+    with:
+      environment: production
+    secrets: inherit

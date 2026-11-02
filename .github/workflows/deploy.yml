@@ -1,0 +1,76 @@
+# Reusable deploy job, called by pipeline.yml for staging and then production.
+# Each GitHub "environment" (Settings -> Environments) holds its own server and keys:
+#   secrets: DEPLOY_HOST, DEPLOY_USER, DEPLOY_SSH_KEY, DEPLOY_KNOWN_HOSTS
+#   vars:    SITE_URL (e.g. https://staging.companyx.example)
+# The app's own secrets (.env) live on each server and never pass through CI.
+name: Deploy
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  deploy:
+    name: Deploy to ${{ inputs.environment }}
+    runs-on: ubuntu-24.04
+    environment:
+      name: ${{ inputs.environment }}
+      url: ${{ vars.SITE_URL }}
+    # Never run two deploys to the same server at once.
+    concurrency:
+      group: deploy-${{ inputs.environment }}
+      cancel-in-progress: false
+    env:
+      TARGET: ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}
+      IMAGE_TAG: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up SSH
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          # Pinned host key: refuse to talk to an impostor server (no "trust on first use").
+          KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          printf 'Host *\n  IdentityFile ~/.ssh/deploy_key\n  StrictHostKeyChecking yes\n' > ~/.ssh/config
+
+      - name: Copy deploy files
+        run: |
+          ssh "$TARGET" 'mkdir -p ~/feedback'
+          scp deploy/docker-compose.prod.yml deploy/Caddyfile deploy/deploy.sh "$TARGET:feedback/"
+
+      - name: Pull images, migrate, restart
+        env:
+          # GITHUB_TOKEN expires when this job ends, so the server keeps no lasting credential.
+          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REGISTRY_USER: ${{ github.actor }}
+        run: |
+          # Variables below expand on the runner on purpose: the server doesn't have them.
+          # shellcheck disable=SC2029
+          printf '%s' "$REGISTRY_TOKEN" | ssh "$TARGET" "docker login ghcr.io -u '$REGISTRY_USER' --password-stdin"
+          prefix="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/feedback"
+          # shellcheck disable=SC2029
+          ssh "$TARGET" "IMAGE_PREFIX='$prefix' IMAGE_TAG='$IMAGE_TAG' sh feedback/deploy.sh"
+
+      - name: Log out of the registry
+        if: always()
+        run: ssh "$TARGET" 'docker logout ghcr.io' || true
+
+      - name: Smoke test
+        env:
+          SITE_URL: ${{ vars.SITE_URL }}
+        run: |
+          curl --fail --silent --show-error --retry 10 --retry-delay 5 --retry-all-errors \
+            "$SITE_URL/api/health/db"
+          curl --fail --silent --show-error --output /dev/null "$SITE_URL/"

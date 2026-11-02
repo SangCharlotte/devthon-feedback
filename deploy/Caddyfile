@@ -1,0 +1,19 @@
+# Caddy: the only public entry point. TLS certificates are issued and renewed
+# automatically when SITE_ADDRESS is a real domain pointing at this server.
+{$SITE_ADDRESS} {
+	encode zstd gzip
+
+	header {
+		# Browsers must use HTTPS for a year (ignored on plain-HTTP sites).
+		Strict-Transport-Security "max-age=31536000"
+		# Don't guess file types, don't allow framing (clickjacking), share less in Referer.
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		-Server
+	}
+
+	# Next.js serves the pages and proxies /api/* to FastAPI on the private network.
+	reverse_proxy frontend:3000
+}
