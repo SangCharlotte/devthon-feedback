@@ -1,0 +1,738 @@
+/* ---------- Layout ---------- */
+.shell {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 16px 16px 96px;
+}
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 1.15rem;
+  font-weight: 800;
+}
+
+.logo {
+  width: 28px;
+  height: 28px;
+  border-radius: 9px 9px 9px 3px;
+  background: conic-gradient(#d64545, #e8833a, #e2b33c, #6fae5a, #2f9e6b, #33508f, #d64545);
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.compact {
+  flex: none;
+  min-height: 48px;
+  padding: 0 1rem;
+}
+
+.rangeRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+/* Phone: one column, most urgent first. */
+.grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-areas: "hero" "alerts" "ai" "trend" "split" "log" "invite" "team";
+  transition: opacity 150ms ease;
+}
+
+/* Refetch keeps the frame: old numbers fade instead of vanishing. */
+.grid[data-loading="true"] {
+  opacity: 0.6;
+}
+
+@media (min-width: 900px) {
+  .grid {
+    grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
+    grid-template-areas:
+      "hero alerts"
+      "trend alerts"
+      "ai split"
+      "ai invite"
+      "log log"
+      "team team";
+    align-items: start;
+  }
+}
+
+.hero {
+  grid-area: hero;
+}
+
+.alertsCard {
+  grid-area: alerts;
+}
+
+.trend {
+  grid-area: trend;
+}
+
+.split {
+  grid-area: split;
+}
+
+.invite {
+  grid-area: invite;
+}
+
+.logCard {
+  grid-area: log;
+}
+
+.aiCard {
+  grid-area: ai;
+}
+
+.teamCard {
+  grid-area: team;
+}
+
+.accountCard {
+  max-width: 480px;
+  margin-bottom: 1rem;
+}
+
+.cardTitle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+}
+
+/* The one hero number on the page. */
+.heroValue {
+  margin: 0;
+  font-size: clamp(3.5rem, 12vw, 5rem);
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+.muted {
+  margin: 0.25rem 0 0.75rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.loading {
+  padding: 3rem 1rem;
+  color: var(--muted);
+  text-align: center;
+}
+
+.error {
+  margin: 0 0 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  color: var(--danger);
+  font-weight: 600;
+}
+
+/* ---------- Chips (range + category filters) ---------- */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 44px;
+  padding: 0 0.95rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.chip[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-contrast);
+}
+
+.chip:focus-visible,
+.search:focus-visible,
+.select:focus-visible,
+.input:focus-visible,
+.logSummary:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+/* ---------- Badges ---------- */
+.countBadge,
+.newBadge {
+  padding: 0.05rem 0.5rem;
+  border-radius: 999px;
+  background: var(--cat-detractor);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.newBadge {
+  background: var(--accent);
+  color: var(--accent-contrast);
+}
+
+/* Score pill: a colour dot carries the category; the number stays in text colour. */
+.scorePill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-left: auto;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.scorePill::before {
+  content: "";
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--cat-promoter);
+}
+
+.scorePill[data-category="detractor"]::before {
+  background: var(--cat-detractor);
+}
+
+.scorePill[data-category="passive"]::before {
+  background: var(--cat-passive);
+}
+
+/* ---------- Alerts ---------- */
+.alertList {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.alert {
+  padding: 0.85rem;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--border);
+  border-radius: 14px;
+  animation: slide-in 300ms ease;
+}
+
+.alert[data-unread="true"] {
+  border-left-color: var(--cat-detractor);
+}
+
+.alertHead {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.alertMeta {
+  margin: 0.2rem 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.contact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  margin: 0.25rem 0 0.6rem;
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+
+.contact a {
+  color: var(--accent);
+}
+
+.contact span {
+  color: var(--muted);
+}
+
+.actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.actions :global(.btn) {
+  min-height: 44px;
+  font-size: 0.9rem;
+}
+
+/* ---------- Drill-down log ---------- */
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-bottom: 0.5rem;
+}
+
+.search,
+.select,
+.input {
+  min-height: 48px;
+  padding: 0 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 16px; /* below 16px, iPhones zoom in on focus */
+}
+
+.search {
+  flex: 1 1 260px;
+}
+
+.log {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  transition: opacity 150ms ease;
+}
+
+.log[data-loading="true"] {
+  opacity: 0.55;
+}
+
+.logRow {
+  border-bottom: 1px solid var(--border);
+}
+
+.logSummary {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  min-height: 56px;
+  padding: 0.5rem 0.25rem;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.logName {
+  display: grid;
+  min-width: 0;
+}
+
+.logName strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.logName small {
+  color: var(--muted);
+}
+
+.chevron {
+  color: var(--muted);
+  transition: transform 200ms ease;
+}
+
+.logSummary[aria-expanded="true"] .chevron {
+  transform: rotate(180deg);
+}
+
+.logDetail {
+  padding: 0 0.25rem 1rem;
+  animation: slide-in 200ms ease;
+}
+
+.breakdown {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0 0 0.5rem;
+}
+
+@media (min-width: 640px) {
+  .breakdown {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.breakdown dt {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.breakdown dd {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+}
+
+.breakdown small {
+  color: var(--muted);
+}
+
+/* Five paint chips: filled up to the score, in that score's swatch colour. */
+.meter {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.meter i {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  background: var(--grid);
+}
+
+.comment {
+  margin: 0.5rem 0;
+  padding-left: 0.75rem;
+  border-left: 3px solid var(--border);
+  font-style: italic;
+}
+
+.more {
+  width: 100%;
+  margin-top: 0.75rem;
+}
+
+/* ---------- Forms ---------- */
+.inviteForm,
+.login {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.inviteForm label,
+.login label {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.inviteForm :global(.btn),
+.login :global(.btn) {
+  margin-top: 0.5rem;
+}
+
+.login {
+  width: min(100%, 400px);
+  margin: 12vh auto 0;
+}
+
+.login h1 {
+  margin: 0 0 0.75rem;
+  font-size: 1.4rem;
+}
+
+.login .error {
+  margin: 0.5rem 0 0;
+}
+
+/* ---------- Notifications ---------- */
+.toasts {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  left: 16px;
+  z-index: 10;
+  display: grid;
+  justify-items: end;
+  gap: 0.5rem;
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  max-width: 420px;
+  padding: 0.75rem 0.5rem 0.75rem 1rem;
+  border-left: 4px solid var(--cat-detractor);
+  border-radius: 14px;
+  background: var(--text);
+  color: var(--bg);
+  box-shadow: var(--shadow);
+  font-weight: 600;
+  pointer-events: auto;
+  animation: slide-in 300ms ease;
+}
+
+.toast button {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  font-size: 1.4rem;
+  cursor: pointer;
+}
+
+@keyframes slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+/* ---------- AI assistance ---------- */
+/* Sentiment dots reuse the category colours: same meaning, same colour. */
+.dot[data-sentiment="positive"] {
+  background: var(--cat-promoter);
+}
+
+.dot[data-sentiment="mixed"] {
+  background: var(--cat-passive);
+}
+
+.dot[data-sentiment="negative"] {
+  background: var(--cat-detractor);
+}
+
+.dot[data-sentiment="neutral"] {
+  background: var(--muted);
+}
+
+.mood {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.75rem;
+  margin: 0 0 0.75rem;
+  font-size: 0.9rem;
+}
+
+.mood .muted {
+  margin: 0;
+}
+
+.moodItem,
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.summary {
+  margin-top: 1rem;
+  animation: slide-in 300ms ease;
+  transition: opacity 150ms ease;
+}
+
+.summary[data-stale="true"] {
+  opacity: 0.6;
+}
+
+.headline {
+  margin: 0 0 0.75rem;
+  font-size: 1.1rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.themes {
+  display: grid;
+  gap: 0.6rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.themes li {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.themes .dot {
+  flex: none;
+  margin-top: 0.45rem;
+}
+
+.subTitle {
+  margin: 1rem 0 0.35rem;
+  font-size: 0.9rem;
+}
+
+.actionsList {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+/* AI output is always labelled as AI output. */
+.aiNote {
+  margin: 0.75rem 0 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0.5rem 0;
+}
+
+.tag {
+  padding: 0.15rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 0.8rem;
+  text-transform: capitalize;
+}
+
+.tags .aiNote {
+  margin: 0;
+}
+
+.replied {
+  margin: 0.2rem 0;
+  color: var(--cat-promoter);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.replyButton {
+  width: 100%;
+  min-height: 44px;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.composer {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0.5rem 0;
+  padding: 0.75rem;
+  border-radius: 12px;
+  background: var(--bg);
+}
+
+.composer label {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.composer .aiNote {
+  margin: 0 0 0.25rem;
+}
+
+.textarea {
+  min-height: 160px;
+  padding: 0.75rem 0.9rem;
+  resize: vertical;
+  line-height: 1.45;
+}
+
+/* Demo mode must never be mistaken for real AI. */
+.demoBanner {
+  margin: 0 0 0.75rem;
+  padding: 0.6rem 0.8rem;
+  border: 1px dashed var(--cat-passive);
+  border-radius: 12px;
+  font-size: 0.85rem;
+}
+
+/* ---------- Team ---------- */
+.teamList {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0 0 1.25rem;
+  padding: 0;
+  list-style: none;
+}
+
+.teamRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.teamRow[data-inactive="true"] > div:first-child {
+  opacity: 0.6;
+}
+
+.teamRow .muted {
+  margin: 0;
+}
+
+.teamMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.roleBadge {
+  padding: 0.05rem 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.roleBadge[data-role="manager"] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.teamActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.resetForm {
+  display: grid;
+  flex-basis: 100%;
+  gap: 0.4rem;
+  max-width: 420px;
+}
+
+.resetForm label {
+  font-size: 0.9rem;
+  font-weight: 600;
+}

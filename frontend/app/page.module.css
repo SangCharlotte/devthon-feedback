@@ -1,0 +1,44 @@
+.shell {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  max-width: 480px;
+  min-height: 100dvh;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+/* A little paint-palette logo */
+.logo {
+  width: 28px;
+  height: 28px;
+  border-radius: 9px 9px 9px 3px;
+  background: conic-gradient(#d64545, #e8833a, #e2b33c, #6fae5a, #2f9e6b, #33508f, #d64545);
+}
+
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.footer {
+  color: var(--muted);
+  font-size: 0.8rem;
+  text-align: center;
+}

@@ -1,0 +1,73 @@
+# Staging / production stack. Runs on the server; CI copies this file there.
+# Differences from the dev docker-compose.yml:
+#   - pre-built images from the registry (no source code, no bind mounts, no reload)
+#   - only Caddy is reachable from the internet; db and backend stay private
+#   - Caddy gets HTTPS certificates automatically
+# Started by deploy.sh with: --env-file .env --env-file release.env
+
+x-backend: &backend
+  image: ${IMAGE_PREFIX:?set IMAGE_PREFIX}-backend:${IMAGE_TAG:?set IMAGE_TAG}
+  env_file: [.env]
+  environment:
+    DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    # No "ports:" - the database is never exposed outside the Docker network.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  migrate:
+    <<: *backend
+    command: ["alembic", "upgrade", "head"]
+    restart: "no"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  backend:
+    <<: *backend
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  frontend:
+    image: ${IMAGE_PREFIX}-frontend:${IMAGE_TAG}
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  caddy:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    environment:
+      # A domain (staging.example.com) gets automatic HTTPS; ":80" serves plain HTTP.
+      SITE_ADDRESS: ${SITE_ADDRESS:-:80}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data # certificates: keep them, or Let's Encrypt rate-limits you
+      - caddy_config:/config
+    depends_on:
+      frontend:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:

@@ -1,0 +1,7 @@
+# Store and check out text files with LF endings on every OS. Windows tools cope
+# with LF; Linux servers do NOT cope with CRLF ("set: Illegal option -" in shell scripts).
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.ico binary

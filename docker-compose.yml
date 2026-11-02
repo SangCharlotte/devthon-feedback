@@ -1,0 +1,94 @@
+# Local development stack for the Company X feedback system.
+# Start everything with:  docker compose up --build
+
+# Shared settings for every container built from ./backend (YAML anchor, reused below).
+x-backend-common: &backend-common
+  build:
+    context: ./backend
+    args:
+      INSTALL_DEV: "true"
+  env_file:
+    - .env
+  environment:
+    DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+  volumes:
+    - ./backend:/app
+
+services:
+  # ---------------------------------------------------------------
+  # 1. DATABASE - PostgreSQL
+  # ---------------------------------------------------------------
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ---------------------------------------------------------------
+  # 2. MIGRATE - applies schema changes, then exits
+  # ---------------------------------------------------------------
+  migrate:
+    <<: *backend-common
+    command: alembic upgrade head
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # ---------------------------------------------------------------
+  # 3. BACKEND - FastAPI (scoring, alerts, SMS, AI)
+  # ---------------------------------------------------------------
+  backend:
+    <<: *backend-common
+    restart: unless-stopped
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --no-proxy-headers
+    ports:
+      - "8000:8000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  # ---------------------------------------------------------------
+  # 4. MAILPIT - fake SMTP server; catches every email in a web inbox
+  # ---------------------------------------------------------------
+  mailpit:
+    image: axllent/mailpit:v1.21.8
+    restart: unless-stopped
+    ports:
+      - "8025:8025" # inbox UI; SMTP (1025) is only reachable inside the network
+
+  # ---------------------------------------------------------------
+  # 5. FRONTEND - Next.js (questionnaire + admin dashboard)
+  # ---------------------------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      target: dev # the hot-reload stage, not the production one
+    restart: unless-stopped
+    environment:
+      # The browser calls /api/* on the frontend; Next.js proxies it here.
+      API_URL_INTERNAL: http://backend:8000
+      # File-change events don't cross from Windows into containers; poll instead.
+      WATCHPACK_POLLING: "true"
+    command: npm run dev
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:
