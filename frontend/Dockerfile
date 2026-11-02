@@ -3,7 +3,7 @@
 #   runner  - the small production image (the default: it's the last stage)
 # Only the final stage ends up in the image; build tools stay behind in earlier ones.
 
-FROM node:22-alpine AS base
+FROM node:26-alpine AS base
 ENV NEXT_TELEMETRY_DISABLED=1
 WORKDIR /app
 
@@ -35,7 +35,7 @@ ENV API_URL_INTERNAL=$API_URL_INTERNAL
 RUN npm run build
 
 # ---------- production runtime ----------
-FROM node:22-alpine AS runner
+FROM node:26-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
