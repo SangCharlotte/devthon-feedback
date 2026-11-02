@@ -1,4 +1,7 @@
-"""Tell the care team about detractors. Runs as a background task after the response is sent."""
+"""
+Asynchronous notification management module handling alert dispatch matrices
+for customer satisfaction score threshold exceptions.
+"""
 
 import logging
 from datetime import UTC, datetime
@@ -14,10 +17,9 @@ log = logging.getLogger(__name__)
 
 
 def notify_detractor(alert_id: int) -> None:
-    """Email (and optionally SMS) the care team.
-
-    Never raises: by the time this runs the feedback is already saved, and a broken
-    mail server must not turn that success into an error.
+    """Dispatches alert notifications via email and SMS configurations.
+    Enforces complete exception isolation to prevent third-party gateway 
+    failures from interrupting the core transaction flow.
     """
     try:
         _notify(alert_id)
@@ -27,7 +29,7 @@ def notify_detractor(alert_id: int) -> None:
 
 def _notify(alert_id: int) -> None:
     settings = get_settings()
-    # Background tasks run after the request's DB session is closed, so open a new one.
+    # Instantiate a scoped database transaction state context for asynchronous worker execution
     with SessionLocal() as db:
         alert = db.get(
             Alert,
@@ -73,5 +75,5 @@ Average score: {response.mean} / 5
 
 Comment: {response.comment or "-"}
 
-Mark the alert as resolved on the dashboard once you have followed up.
+System Alert: Update operational status to 'Resolved' within the management terminal post-remediation.
 """

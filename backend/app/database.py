@@ -7,12 +7,12 @@ from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 from app.config import get_settings
 
-# The engine manages a pool of connections. It connects lazily, on first use.
+# Initialize relational connection engine instance
 engine = create_engine(get_settings().database_url, pool_pre_ping=True)
 
 SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
 
-# Predictable constraint names, so Alembic can find (and drop) them in later migrations.
+# Standardize data constraint schema for consistent migration orchestration
 NAMING_CONVENTION = {
     "ix": "ix_%(column_0_label)s",
     "uq": "uq_%(table_name)s_%(column_0_name)s",
@@ -29,7 +29,9 @@ class Base(DeclarativeBase):
 
 
 def get_db() -> Generator[Session, None, None]:
-    """FastAPI dependency: one session per request, always closed afterwards."""
+    """Yields an isolated transactional scope context manager.
+Guarantees absolute connection closure upon request lifecycle termination.
+"""
     db = SessionLocal()
     try:
         yield db

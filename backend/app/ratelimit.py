@@ -1,12 +1,7 @@
-"""Counts failed logins so a password can't be guessed by trying thousands of times.
-
-A sliding window: we remember the time of each failure and forget it after
-`window` seconds. Once a key (an IP address, a username) has `limit` failures
-inside the window, it is blocked until the oldest one expires.
-
-Kept in memory: simple and fast for our single backend process. It resets when
-the backend restarts, and several backend copies would each keep their own
-count - at that scale it would move to a shared store such as Redis.
+"""
+Sliding Window Rate Limiter Engine.
+Provides memory-efficient, thread-safe request tracking bounds across a sliding temporal interval
+to mitigate automated brute-force authentication subversion vectors.
 """
 
 import math
@@ -19,10 +14,9 @@ class FailureLimiter:
     def __init__(self, limit: int, window_seconds: float, clock=time.monotonic):
         self.limit = limit
         self.window = window_seconds
-        self._clock = clock  # swappable, so tests can move time forward
+        self._clock = clock  # Injectable clock provider reference to facilitate deterministic unit testing simulations
         self._failures: dict[str, deque[float]] = {}
-        # FastAPI runs normal `def` endpoints in a thread pool: two logins can
-        # arrive at once, so the dict is only touched while holding the lock.
+        # Mitigate race conditions arising from concurrent FastAPI worker execution pool contexts
         self._lock = threading.Lock()
 
     def _recent(self, key: str, now: float) -> deque[float]:
@@ -32,7 +26,7 @@ class FailureLimiter:
         if times:
             self._failures[key] = times
         else:
-            self._failures.pop(key, None)  # don't keep empty entries around forever
+            self._failures.pop(key, None)  # Clean up empty tracking keys to optimize resource utilization
         return times
 
     def retry_after(self, key: str) -> int:

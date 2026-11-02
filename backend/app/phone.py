@@ -1,7 +1,7 @@
 import re
 
-# Africa's Talking expects E.164 numbers (+2547XXXXXXXX). Local numbers like
-# "0712 345 678" are assumed to be Kenyan; change this for another market.
+# Normalize input strings to the international E.164 telecommunication formatting standard.
+# Enforces standard regional telephone routing prefixes for carrier gateway compatibility.
 DEFAULT_COUNTRY_CODE = "254"
 
 _E164 = re.compile(r"\+\d{9,15}")

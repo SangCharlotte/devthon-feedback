@@ -52,7 +52,7 @@ class Customer(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(100))
-    # Nullable: painters replying by SMS may only be known by phone number.
+    # Support phone-only identification for inbound SMS channels
     email: Mapped[str | None] = mapped_column(String(255), unique=True)
     phone: Mapped[str | None] = mapped_column(String(20), index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -70,9 +70,9 @@ class FeedbackResponse(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     customer_id: Mapped[int] = mapped_column(ForeignKey("customers.id"), index=True)
-    q1: Mapped[int] = mapped_column(SmallInteger)  # product experience
-    q2: Mapped[int] = mapped_column(SmallInteger)  # customer care
-    q3: Mapped[int] = mapped_column(SmallInteger)  # happy with product
+    q1: Mapped[int] = mapped_column(SmallInteger) 
+    q2: Mapped[int] = mapped_column(SmallInteger)  
+    q3: Mapped[int] = mapped_column(SmallInteger) 
     mean: Mapped[Decimal] = mapped_column(Numeric(3, 2))
     category: Mapped[Category] = mapped_column(_string_enum(Category, "category"), index=True)
     channel: Mapped[Channel] = mapped_column(_string_enum(Channel, "channel"))
@@ -80,7 +80,7 @@ class FeedbackResponse(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), index=True
     )
-    # Filled in later by the AI (NULL = no comment, AI off, or AI failed - never an error).
+    # AI enrichment telemetry fields; nullable to handle asynchronous processing fallbacks
     ai_sentiment: Mapped[Sentiment | None] = mapped_column(_string_enum(Sentiment, "ai_sentiment"))
     ai_topics: Mapped[list[str] | None] = mapped_column(ARRAY(String(20)))
     ai_tagged_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
@@ -103,7 +103,7 @@ class Alert(Base):
     # Delivery receipts: NULL means the notification was not (or not yet) delivered.
     email_sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     sms_sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    # Audit trail of the reply a care rep actually sent (after editing any AI draft).
+    # Audit log fields tracking final modification state of care responses
     replied_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     replied_by: Mapped[str | None] = mapped_column(String(100))
     reply_subject: Mapped[str | None] = mapped_column(String(200))
@@ -113,26 +113,24 @@ class Alert(Base):
 
 
 class Role(StrEnum):
-    MANAGER = "manager"  # everything a rep can do, plus managing the team
+    MANAGER = "manager" 
     REP = "rep"
 
 
 class StaffUser(Base):
-    """A care-team login. The owner account in .env is separate and has no row here."""
+    """Internal operational staff profiles for dashboard access control."""
 
     __tablename__ = "staff"
     __table_args__ = (CheckConstraint("username = lower(username)", name="username_lowercase"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    # Stored lowercase, so "Wanjiru" and "wanjiru" can't become two accounts.
     username: Mapped[str] = mapped_column(String(50), unique=True)
     display_name: Mapped[str] = mapped_column(String(100))
     password_hash: Mapped[str] = mapped_column(String(200))
     role: Mapped[Role] = mapped_column(_string_enum(Role, "staff_role"), default=Role.REP)
-    # Deactivate instead of delete: their name stays on the replies they sent.
+    # Logical deletion flag to preserve historic relationship data.
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
-    # Copied into each login token. Bumping it (password change, deactivation)
-    # makes every older token invalid: "log out everywhere".
+    # Session invalidation sequence counter for token revocation
     session_version: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
