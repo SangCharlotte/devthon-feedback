@@ -22,7 +22,7 @@ import { InsightsPanel } from "./InsightsPanel";
 import { ResponseDetail } from "./ResponseDetail";
 import { Avatar, PageHeader, RangeSelect, ScorePill, SentimentBadge } from "./ui";
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 12;
 const SEARCH_DELAY_MS = 300;
 
 export type InboxStart = { q?: string; sentiment?: Sentiment; segment?: Segment };

@@ -72,7 +72,7 @@ export function AlertsPanel({ alerts, aiEnabled, onUpdated, onError }: Props) {
               }}
             />
           ) : (
-            alert.customer_email && (
+            (alert.customer_email || alert.customer_phone) && (
               <button
                 type="button"
                 className={`btn btn-secondary ${styles.replyButton}`}

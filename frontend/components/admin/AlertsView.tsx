@@ -147,7 +147,7 @@ function AlertCard({ alert, onUpdated }: { alert: AlertItem; onUpdated: (alert: 
           />
         ) : (
           <div className={styles.actions}>
-            {alert.customer_email && (
+            {(alert.customer_email || alert.customer_phone) && (
               <button type="button" className="btn btn-secondary" onClick={() => setReplying(true)}>
                 <Icon name={ai.enabled ? "sparkle" : "mail"} size={18} />
                 {ai.enabled ? "Draft a reply" : "Write a reply"}

@@ -4,7 +4,7 @@ import anthropic
 import httpx2
 import pytest
 
-from app import ai, mailer
+from app import ai, mailer, sms
 from app.ai import CommentTags, FeedbackSummary, ReplyDraft, Sentiment, Theme, Topic
 from app.models import Channel, Customer, Segment
 from app.routers import ai as ai_router
@@ -260,12 +260,26 @@ def test_reply_failure_is_not_recorded_as_sent(client, alert_id, monkeypatch):
     assert client.get("/alerts").json()[0]["replied_at"] is None
 
 
-def test_sms_only_customers_cannot_be_emailed(client, db_session):
+def test_sms_only_customers_get_the_reply_by_sms(client, outbox, db_session):
     client.post("/sms/inbound", data={"from": "+254733111222", "text": "1 1 1"})
     alert_id = client.get("/alerts").json()[0]["id"]
+    emails_before = len(outbox["email"])
+
+    reply = {"subject": "About your paint", "body": "Sorry! I'll call you today. - Amina"}
+    alert = client.post(f"/alerts/{alert_id}/reply", json=reply).json()
+
+    assert outbox["sms"][-1] == {"to": "+254733111222", "message": reply["body"]}
+    assert len(outbox["email"]) == emails_before  # no email to the customer
+    assert alert["replied_at"] is not None
+
+
+def test_sms_reply_failure_is_not_recorded_as_sent(client, outbox, db_session, monkeypatch):
+    client.post("/sms/inbound", data={"from": "+254733111222", "text": "1 1 1"})
+    alert_id = client.get("/alerts").json()[0]["id"]
+    monkeypatch.setattr(sms, "send_sms", lambda *args: False)
     response = client.post(f"/alerts/{alert_id}/reply", json={"subject": "s", "body": "b"})
-    assert response.status_code == 422
-    assert "call them" in response.json()["detail"]
+    assert response.status_code == 502
+    assert client.get("/alerts").json()[0]["replied_at"] is None
 
 
 def test_empty_reply_is_rejected(client, alert_id):

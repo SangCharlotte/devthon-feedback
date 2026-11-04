@@ -26,6 +26,9 @@ export function ReplyComposer({ alert, aiEnabled, onSent, onCancel, onError }: P
   const [fromAi, setFromAi] = useState(false);
   const [sending, setSending] = useState(false);
   const [note, setNote] = useState<string | null>(null);
+  // No email (e.g. feature-phone customers): the backend sends the body by SMS instead.
+  const viaSms = !alert.customer_email;
+  const recipient = alert.customer_email ?? alert.customer_phone;
 
   useEffect(() => {
     if (!aiEnabled) return;
@@ -54,7 +57,9 @@ export function ReplyComposer({ alert, aiEnabled, onSent, onCancel, onError }: P
     setSending(true);
     setNote(null);
     try {
-      onSent(await adminApi.sendReply(alert.id, { subject: subject.trim(), body: body.trim() }));
+      // SMS has no subject line, but the record still needs one.
+      const subjectLine = subject.trim() || (viaSms ? "SMS reply" : "");
+      onSent(await adminApi.sendReply(alert.id, { subject: subjectLine, body: body.trim() }));
     } catch (error) {
       if (error instanceof UnauthorizedError) onError(error);
       else setNote(error instanceof Error ? error.message : "Couldn't send the reply.");
@@ -62,7 +67,7 @@ export function ReplyComposer({ alert, aiEnabled, onSent, onCancel, onError }: P
     }
   }
 
-  const ready = subject.trim() !== "" && body.trim() !== "" && !drafting && !sending;
+  const ready = (viaSms || subject.trim() !== "") && body.trim() !== "" && !drafting && !sending;
 
   return (
     <div className={styles.composer}>
@@ -75,16 +80,22 @@ export function ReplyComposer({ alert, aiEnabled, onSent, onCancel, onError }: P
           <p className={styles.aiNote}>✦ AI draft. Read it, make it yours, then send. Nothing is sent until you do.</p>
         )
       )}
-      <label htmlFor={`${id}-subject`}>Subject</label>
-      <input
-        id={`${id}-subject`}
-        className={styles.input}
-        value={subject}
-        disabled={drafting}
-        maxLength={200}
-        onChange={(event) => setSubject(event.target.value)}
-      />
-      <label htmlFor={`${id}-body`}>Message to {alert.customer_email}</label>
+      {!viaSms && (
+        <>
+          <label htmlFor={`${id}-subject`}>Subject</label>
+          <input
+            id={`${id}-subject`}
+            className={styles.input}
+            value={subject}
+            disabled={drafting}
+            maxLength={200}
+            onChange={(event) => setSubject(event.target.value)}
+          />
+        </>
+      )}
+      <label htmlFor={`${id}-body`}>
+        {viaSms ? "SMS" : "Message"} to {recipient}
+      </label>
       <textarea
         id={`${id}-body`}
         className={`${styles.input} ${styles.textarea}`}
@@ -104,7 +115,7 @@ export function ReplyComposer({ alert, aiEnabled, onSent, onCancel, onError }: P
           Cancel
         </button>
         <button type="button" className="btn btn-primary" onClick={send} disabled={!ready}>
-          {sending ? "Sending…" : "Send email"}
+          {sending ? "Sending…" : viaSms ? "Send SMS" : "Send email"}
         </button>
       </div>
     </div>

@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
-from app import ai, mailer
+from app import ai, mailer, sms
 from app.ai import ReplyDraft
 from app.auth import Staff, require_staff
 from app.database import DbSession
@@ -82,15 +82,23 @@ def draft_reply(alert_id: int, db: DbSession) -> ReplyDraft:
 
 @router.post("/{alert_id}/reply")
 def send_reply(alert_id: int, payload: ReplyIn, db: DbSession, user: Staff) -> AlertOut:
-    """Email the customer the reply the care rep wrote or approved, and keep a record."""
+    """Send the customer the reply the care rep wrote or approved, and keep a record.
+
+    Email when we have an address; otherwise SMS (feature-phone customers often have no email).
+    """
     alert = _get_alert(db, alert_id)
     customer = alert.response.customer
-    if not customer.email:
+    if customer.email:
+        if not mailer.send_email(customer.email, payload.subject, payload.body):
+            raise HTTPException(status_code=502, detail="Couldn't send the email, please try again")
+    elif customer.phone:
+        # SMS has no subject line: only the body goes to the customer.
+        if not sms.send_sms(customer.phone, payload.body):
+            raise HTTPException(status_code=502, detail="Couldn't send the SMS, please try again")
+    else:
         raise HTTPException(
-            status_code=422, detail="This customer has no email address - call them instead"
+            status_code=422, detail="This customer has no email or phone number on record"
         )
-    if not mailer.send_email(customer.email, payload.subject, payload.body):
-        raise HTTPException(status_code=502, detail="Couldn't send the email, please try again")
 
     alert.replied_at = datetime.now(UTC)
     alert.replied_by = user.username  # who sent it, for the audit trail

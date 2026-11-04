@@ -1,7 +1,9 @@
 """Fill the dev database with realistic sample feedback so the dashboard has history.
 
-    docker compose exec backend python -m app.seed            # 60 days of data
-    docker compose exec backend python -m app.seed --days 90
+    docker compose exec backend python -m app.seed                       # last 22 days, 2-4 a day
+    docker compose exec backend python -m app.seed --days 30 --per-day 3  # 3-5 a day
+
+Today is never seeded, so it starts empty for live demos.
 
 Sample customers use @seed.companyx.test addresses; running it again replaces only them.
 Their comments are tagged by the offline demo tagger, so the topic charts have data.
@@ -45,7 +47,7 @@ CUSTOMER_KINDS = (
 )
 
 
-def seed(days: int) -> int:
+def seed(days: int, per_day: int) -> int:
     rng = random.Random(42)  # fixed seed: the same "random" data every run
     with SessionLocal() as db:
         sample = select(Customer.id).where(Customer.email.like("%@seed.companyx.test"))
@@ -72,17 +74,21 @@ def seed(days: int) -> int:
         db.add_all(customers)
 
         count = 0
-        now = datetime.now(UTC)
+        # Midnight UTC today: every sample lands on a whole earlier calendar day, never today.
+        today = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
         for days_ago in range(days, 0, -1):
             # Scores drift upwards over time, so the trend line has a story to tell.
             mood = 2.6 + 1.6 * (1 - days_ago / days)
-            for _ in range(rng.randint(0, 6)):
+            for _ in range(rng.randint(per_day, per_day + 2)):  # never fewer than per_day
                 q1, q2, q3 = (max(1, min(5, round(rng.gauss(mood, 1.1)))) for _ in range(3))
                 result = score_answers(q1, q2, q3)
                 customer = rng.choice(customers)
                 comment = rng.choice(COMMENTS)
                 tags = ai_demo.tag(comment) if comment else None
-                created_at = now - timedelta(days=days_ago, minutes=rng.randrange(600))
+                # 06:00-15:59 UTC, i.e. 09:00-18:59 in Nairobi: business hours, same local day.
+                created_at = today - timedelta(days=days_ago) + timedelta(
+                    hours=6, minutes=rng.randrange(600)
+                )
                 response = FeedbackResponse(
                     customer=customer,
                     q1=q1,
@@ -119,5 +125,7 @@ def seed(days: int) -> int:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--days", type=int, default=60)
-    print(f"Seeded {seed(parser.parse_args().days)} sample responses.")
+    parser.add_argument("--days", type=int, default=22)
+    parser.add_argument("--per-day", type=int, default=2, help="minimum per day")
+    args = parser.parse_args()
+    print(f"Seeded {seed(args.days, args.per_day)} sample responses.")
