@@ -6,6 +6,7 @@ import { adminApi, UnauthorizedError, type Role, type StaffChange, type StaffMem
 import { dateTime } from "@/lib/format";
 
 import styles from "./admin.module.css";
+import { Avatar } from "./ui";
 
 export const MIN_PASSWORD = 10;
 const USERNAME_PATTERN = /^[a-z0-9._-]{2,50}$/;
@@ -102,11 +103,12 @@ export function TeamPanel({ currentUsername, onError }: Props) {
             const isMe = member.username === currentUsername;
             return (
               <li key={member.id} className={styles.teamRow} data-inactive={!member.is_active}>
-                <div>
-                  <strong>{member.display_name}</strong> <span className={styles.muted}>@{member.username}</span>
+                <Avatar name={member.display_name} />
+                <div className={styles.teamWho}>
+                  <strong>{member.display_name}</strong> <span className={styles.handle}>@{member.username}</span>
                   <div className={styles.teamMeta}>
                     <span className={styles.roleBadge} data-role={member.role}>
-                      {member.role === "manager" ? "Manager" : "Care rep"}
+                      {member.is_owner ? "Owner" : member.role === "manager" ? "Manager" : "Care rep"}
                     </span>
                     {!member.is_active && <span className={styles.roleBadge}>Deactivated</span>}
                     <span>
@@ -114,53 +116,58 @@ export function TeamPanel({ currentUsername, onError }: Props) {
                     </span>
                   </div>
                 </div>
-                <div className={styles.teamActions}>
-                  {!isMe && member.is_active && (
-                    <button
-                      type="button"
-                      className={`btn btn-secondary ${styles.compact}`}
-                      onClick={() =>
-                        update(
-                          member,
-                          { role: member.role === "manager" ? "rep" : "manager" },
-                          `${member.display_name} is now a ${member.role === "manager" ? "care rep" : "manager"}.`,
-                        )
-                      }
-                    >
-                      {member.role === "manager" ? "Make care rep" : "Make manager"}
-                    </button>
-                  )}
-                  {member.is_active && (
-                    <button
-                      type="button"
-                      className={`btn btn-secondary ${styles.compact}`}
-                      aria-expanded={resetting === member.id}
-                      onClick={() => {
-                        setResetting(resetting === member.id ? null : member.id);
-                        setNewPassword("");
-                      }}
-                    >
-                      Reset password
-                    </button>
-                  )}
-                  {!isMe && (
-                    <button
-                      type="button"
-                      className={`btn btn-secondary ${styles.compact}`}
-                      onClick={() =>
-                        update(
-                          member,
-                          { is_active: !member.is_active },
-                          member.is_active
-                            ? `${member.display_name} can no longer sign in, and was signed out everywhere.`
-                            : `${member.display_name} can sign in again.`,
-                        )
-                      }
-                    >
-                      {member.is_active ? "Deactivate" : "Reactivate"}
-                    </button>
-                  )}
-                </div>
+                {/* The owner account lives in the server's .env; the API refuses changes to it. */}
+                {member.is_owner ? (
+                  <p className={styles.ownerNote}>Managed in the server&apos;s .env</p>
+                ) : (
+                  <div className={styles.teamActions}>
+                    {!isMe && member.is_active && (
+                      <button
+                        type="button"
+                        className={`btn btn-secondary ${styles.compact}`}
+                        onClick={() =>
+                          update(
+                            member,
+                            { role: member.role === "manager" ? "rep" : "manager" },
+                            `${member.display_name} is now a ${member.role === "manager" ? "care rep" : "manager"}.`,
+                          )
+                        }
+                      >
+                        {member.role === "manager" ? "Make care rep" : "Make manager"}
+                      </button>
+                    )}
+                    {member.is_active && (
+                      <button
+                        type="button"
+                        className={`btn btn-secondary ${styles.compact}`}
+                        aria-expanded={resetting === member.id}
+                        onClick={() => {
+                          setResetting(resetting === member.id ? null : member.id);
+                          setNewPassword("");
+                        }}
+                      >
+                        Reset password
+                      </button>
+                    )}
+                    {!isMe && (
+                      <button
+                        type="button"
+                        className={`btn btn-secondary ${styles.compact}`}
+                        onClick={() =>
+                          update(
+                            member,
+                            { is_active: !member.is_active },
+                            member.is_active
+                              ? `${member.display_name} can no longer sign in, and was signed out everywhere.`
+                              : `${member.display_name} can sign in again.`,
+                          )
+                        }
+                      >
+                        {member.is_active ? "Deactivate" : "Reactivate"}
+                      </button>
+                    )}
+                  </div>
+                )}
                 {resetting === member.id && (
                   <form className={styles.resetForm} onSubmit={(event) => resetPassword(event, member)} noValidate>
                     <label htmlFor={`${id}-reset-${member.id}`}>New password for {member.display_name}</label>
@@ -183,7 +190,7 @@ export function TeamPanel({ currentUsername, onError }: Props) {
         </ul>
       )}
 
-      <form className={styles.inviteForm} onSubmit={add} noValidate>
+      <form className={styles.form} onSubmit={add} noValidate>
         <h3 className={styles.subTitle}>Add a team member</h3>
         <label htmlFor={`${id}-name`}>Full name</label>
         <input

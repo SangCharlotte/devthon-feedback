@@ -5,7 +5,7 @@ import { useState, type FormEvent } from "react";
 
 import { adminApi, UnauthorizedError } from "@/lib/admin";
 
-import styles from "./admin.module.css";
+import styles from "./login.module.css";
 
 export function LoginForm() {
   const router = useRouter();
@@ -30,8 +30,9 @@ export function LoginForm() {
   }
 
   return (
-    <form className={`card ${styles.login}`} onSubmit={submit}>
-      <h1>Care team sign in</h1>
+    <form className={styles.form} onSubmit={submit}>
+      <h1>Welcome back</h1>
+      <p className={styles.lead}>Sign in to see what your customers are saying.</p>
       <label htmlFor="username">Username</label>
       <input
         id="username"

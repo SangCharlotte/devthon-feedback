@@ -4,6 +4,7 @@
     docker compose exec backend python -m app.seed --days 90
 
 Sample customers use @seed.companyx.test addresses; running it again replaces only them.
+Their comments are tagged by the offline demo tagger, so the topic charts have data.
 """
 
 import argparse
@@ -13,13 +14,35 @@ from decimal import Decimal
 
 from sqlalchemy import delete, select
 
+from app import ai_demo
 from app.database import SessionLocal
-from app.models import Alert, AlertStatus, Channel, Customer, FeedbackResponse
+from app.models import Alert, AlertStatus, Channel, Customer, FeedbackResponse, Segment
 from app.scoring import score_answers
 
 FIRST = ["Akinyi", "Baraka", "Chebet", "Wanjiru", "Otieno", "Njeri", "Kamau", "Atieno", "Mwangi"]
 LAST = ["Odhiambo", "Kiprop", "Mutua", "Wambui", "Ochieng", "Kariuki", "Njoroge", "Achieng"]
-COMMENTS = [None, None, None, "Great coverage", "Colour faded fast", "Fast delivery", "Peeling"]
+COMMENTS = [
+    None,
+    None,
+    None,
+    "Great coverage",
+    "Colour faded fast",
+    "Fast delivery",
+    "Peeling",
+    "Too expensive for one coat",
+    "Delivery was late again",
+    "Smooth finish, love it",
+    "Strong smell for days",
+    "Staff were helpful with advice",
+    "Lid leaked in the car",
+]
+# Painters text in from feature phones or use the web form; homeowners use the web form.
+# 20 + 11 web respondents is the ~65/35 homeowner/painter web split.
+CUSTOMER_KINDS = (
+    [(Segment.HOMEOWNER, Channel.WEB)] * 20
+    + [(Segment.PAINTER, Channel.WEB)] * 11
+    + [(Segment.PAINTER, Channel.SMS)] * 9
+)
 
 
 def seed(days: int) -> int:
@@ -33,16 +56,19 @@ def seed(days: int) -> int:
         db.execute(delete(FeedbackResponse).where(FeedbackResponse.customer_id.in_(sample)))
         db.execute(delete(Customer).where(Customer.id.in_(sample)))
 
+        kinds = rng.sample(CUSTOMER_KINDS, len(CUSTOMER_KINDS))
         customers = [
             Customer(
                 name=f"{first} {last}",
                 email=f"{first}.{last}{i}@seed.companyx.test".lower(),
                 phone=f"+2547{rng.randrange(10**8):08d}",
+                segment=segment,
             )
-            for i, (first, last) in enumerate(
-                (rng.choice(FIRST), rng.choice(LAST)) for _ in range(40)
+            for i, ((first, last), (segment, _)) in enumerate(
+                ((rng.choice(FIRST), rng.choice(LAST)), kind) for kind in kinds
             )
         ]
+        channel_of = {id(c): channel for c, (_, channel) in zip(customers, kinds, strict=True)}
         db.add_all(customers)
 
         count = 0
@@ -53,16 +79,23 @@ def seed(days: int) -> int:
             for _ in range(rng.randint(0, 6)):
                 q1, q2, q3 = (max(1, min(5, round(rng.gauss(mood, 1.1)))) for _ in range(3))
                 result = score_answers(q1, q2, q3)
+                customer = rng.choice(customers)
+                comment = rng.choice(COMMENTS)
+                tags = ai_demo.tag(comment) if comment else None
+                created_at = now - timedelta(days=days_ago, minutes=rng.randrange(600))
                 response = FeedbackResponse(
-                    customer=rng.choice(customers),
+                    customer=customer,
                     q1=q1,
                     q2=q2,
                     q3=q3,
                     mean=Decimal(str(result.mean)),
                     category=result.category,
-                    channel=Channel.SMS if rng.random() < 0.25 else Channel.WEB,
-                    comment=rng.choice(COMMENTS),
-                    created_at=now - timedelta(days=days_ago, minutes=rng.randrange(600)),
+                    channel=channel_of[id(customer)],
+                    comment=comment,
+                    created_at=created_at,
+                    ai_sentiment=tags.sentiment if tags else None,
+                    ai_topics=[t.value for t in tags.topics] if tags else None,
+                    ai_tagged_at=created_at if tags else None,
                 )
                 db.add(response)
                 if result.needs_alert:

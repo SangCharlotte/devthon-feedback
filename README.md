@@ -21,7 +21,9 @@ passive, **above 3** is a promoter. Example: (2 + 3 + 2) / 3 = 2.33, so it's a d
 
 ## AI assistance (optional)
 
-With `AI_API_KEY` set, Claude helps the care team. It never acts alone:
+With `AI_API_KEY` set, an LLM helps the care team. `AI_PROVIDER` picks OpenAI
+(default model `gpt-5.4-mini`) or Anthropic Claude; both get the same prompts and
+return the same validated JSON shapes. It never acts alone:
 
 | Feature | When it runs | Human in the loop |
 |---|---|---|
@@ -48,17 +50,16 @@ docker compose exec backend python -m app.seed   # optional: 60 days of sample d
 | URL | What |
 |---|---|
 | http://localhost:3000 | Customer questionnaire |
-| http://localhost:3000/admin | Admin dashboard (set `ADMIN_PASSWORD_HASH`, see below) |
+| http://localhost:3000/admin | Admin dashboard (sign in with `ADMIN_USERNAME` / `ADMIN_PASSWORD` from `.env`) |
 | http://localhost:8000/docs | API docs |
 | http://localhost:8025 | Mailpit: every email the app sends, caught locally |
 
-Create the admin password hash and put it in `.env`:
-
-```sh
-docker compose run --rm --no-deps backend python -m app.auth hash-password
-```
+Set `ADMIN_USERNAME` and `ADMIN_PASSWORD` in `.env`. On every startup the backend
+stores that account in the database as a manager, with the password hashed (scrypt).
+To change the password, edit `.env` and restart the backend; old owner sessions end.
 
 That `.env` account is the **owner**: it always works, so the team can't be locked out.
+The dashboard can't deactivate, demote or reset it; `.env` is its only source of truth.
 Sign in as the owner and use the dashboard's **Team** card to give every care rep their
 own login:
 
@@ -69,6 +70,40 @@ own login:
 
 Deactivating someone or resetting their password signs them out on every device at once.
 People are deactivated, never deleted, so their name stays on the replies they sent.
+
+## SMS and USSD with the Africa's Talking sandbox
+
+Painters on feature phones can answer two ways, with no app and no data bundle:
+
+| Channel | How the painter answers | Callback |
+|---|---|---|
+| SMS | The care team texts an invite from **Customers → Invite a painter**. The painter replies `4 5 4`, optionally followed by a comment. | `POST /sms/inbound` |
+| USSD | The painter dials the service code and answers three 1–5 menus, then an optional comment. A wrong key re-asks the question. | `POST /ussd` |
+
+Both callbacks check `?token=<AT_WEBHOOK_TOKEN>`. Both save the answer as a painter's
+response, raise a detractor alert and tag the comment with AI, the same as the web form.
+
+**One-time setup in the sandbox** (at account.africastalking.com, open the sandbox app):
+
+1. Give the backend a public HTTPS URL, for example `ngrok http 8000` (or the port your
+   backend listens on). The URLs below call it `https://PUBLIC`.
+2. **SMS → Shortcodes:** create a shortcode, then set `AT_SENDER_ID` to it in `.env`. Invites
+   are sent from it, so the simulator's replies come back to it.
+3. **SMS → SMS Callback URLs → Incoming Messages:** `https://PUBLIC/sms/inbound?token=<AT_WEBHOOK_TOKEN>`.
+4. **USSD → Create Channel:** pick a code and set the callback to
+   `https://PUBLIC/ussd?token=<AT_WEBHOOK_TOKEN>`. Then set `AT_USSD_CODE` in `.env`.
+5. Restart the backend so it reads the new `.env` values.
+
+**Try it:** open simulator.africastalking.com and launch a phone with a number such as
+`+254711000555`. Send that number an invite from the dashboard: it appears in the
+simulator's SMS inbox, and replying `4 5 4` records feedback. Or dial the USSD code.
+
+**Without a public URL** (offline demos), the same paths can be run from inside the stack:
+
+```sh
+docker compose exec backend python -m app.simulate_sms 0712345678 "2 1 2 the paint peeled"
+docker compose exec backend python -m app.simulate_ussd 0712345678 4 5 4 "great coverage"
+```
 
 ## Tests and checks
 

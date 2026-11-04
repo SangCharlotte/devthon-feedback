@@ -11,11 +11,12 @@ from pydantic import (
     EmailStr,
     Field,
     StringConstraints,
+    computed_field,
 )
 
 from app.ai import FeedbackSummary, Sentiment
-from app.auth import MIN_PASSWORD_LENGTH, CurrentUser, normalize_username
-from app.models import Alert, AlertStatus, Channel, FeedbackResponse, Role
+from app.auth import MIN_PASSWORD_LENGTH, CurrentUser, normalize_username, owner_username
+from app.models import Alert, AlertStatus, Channel, FeedbackResponse, Role, Segment
 from app.phone import normalize_phone
 from app.scoring import Category
 
@@ -32,6 +33,7 @@ class FeedbackIn(BaseModel):
     q2: Rating
     q3: Rating
     comment: Annotated[str, StringConstraints(strip_whitespace=True, max_length=1000)] | None = None
+    segment: Segment = Segment.HOMEOWNER
 
 
 class FeedbackOut(BaseModel):
@@ -115,7 +117,7 @@ class MeOut(BaseModel):
             username=user.username,
             display_name=user.display_name,
             role=user.role,
-            is_owner=user.staff_id is None,
+            is_owner=user.is_owner,
         )
 
 
@@ -163,6 +165,12 @@ class StaffOut(BaseModel):
     created_at: datetime
     last_login_at: datetime | None
 
+    @computed_field
+    @property
+    def is_owner(self) -> bool:
+        """The owner row is synced from .env on startup, so the UI can't edit it."""
+        return self.username == owner_username()
+
 
 # ---------- Dashboard insights ----------
 
@@ -173,7 +181,7 @@ class CategorySplit(BaseModel):
     promoter: int = 0
 
 
-class DayPoint(BaseModel):
+class DayPoint(CategorySplit):
     date: date
     responses: int
     average: float | None  # None on days nobody answered (a gap, not a zero)
@@ -194,6 +202,34 @@ class SentimentSplit(BaseModel):
     untagged: int = 0
 
 
+class SegmentSplit(BaseModel):
+    """Distinct respondents in the period, by customer segment."""
+
+    homeowner: int = 0
+    painter: int = 0
+
+
+class TopicCount(BaseModel):
+    topic: str
+    count: int  # tagged comments mentioning the topic
+    negative: int  # ...of which the AI read as negative
+
+
+class QuestionAverages(BaseModel):
+    q1: float | None
+    q2: float | None
+    q3: float | None
+
+
+class PeriodTotals(BaseModel):
+    """The headline numbers for the equal-length window before the selected one."""
+
+    total_responses: int
+    total_respondents: int
+    average_score: float | None
+    split: CategorySplit
+
+
 class AlertCounts(BaseModel):
     open: int
     unread: int
@@ -211,6 +247,11 @@ class StatsOut(BaseModel):
     trend_per_day: float | None  # slope of the fitted line, in score points per day
     alerts: AlertCounts
     sentiment: SentimentSplit
+    segments: SegmentSplit
+    topics: list[TopicCount]  # most mentioned first, at most 8
+    tagged_comments: int  # comments with an AI sentiment: the denominator for topic shares
+    questions: QuestionAverages
+    previous: PeriodTotals
 
 
 class ResponseOut(BaseModel):
@@ -226,6 +267,7 @@ class ResponseOut(BaseModel):
     customer_name: str
     customer_email: str | None
     customer_phone: str | None
+    segment: Segment
     alert_status: AlertStatus | None
     ai_sentiment: Sentiment | None
     ai_topics: list[str]
@@ -246,6 +288,7 @@ class ResponseOut(BaseModel):
             customer_name=customer.name,
             customer_email=customer.email,
             customer_phone=customer.phone,
+            segment=customer.segment,
             alert_status=response.alert.status if response.alert else None,
             ai_sentiment=response.ai_sentiment,
             ai_topics=response.ai_topics or [],

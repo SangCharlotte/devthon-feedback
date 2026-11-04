@@ -1,4 +1,4 @@
-import type { QuestionId, Rating } from "./questions";
+import type { QuestionId, Rating, Segment } from "./questions";
 import type { DetailErrors, Details } from "./validation";
 
 // Same-origin path: next.config.ts forwards /api/* to FastAPI.
@@ -7,7 +7,10 @@ const API_BASE = "/api";
 export type Category = "detractor" | "passive" | "promoter";
 
 type Answers = Record<QuestionId, Rating>;
-export type FeedbackPayload = Omit<Details, "comment"> & { comment?: string } & Answers;
+export type FeedbackPayload = Omit<Details, "comment" | "segment"> & {
+  comment?: string;
+  segment: Segment;
+} & Answers;
 
 export type FeedbackResult = {
   id: number;
@@ -49,7 +52,7 @@ export async function submitFeedback(payload: FeedbackPayload): Promise<Feedback
 }
 
 type ValidationIssue = { loc?: unknown[]; msg?: string };
-const DETAIL_FIELDS: readonly (keyof Details)[] = ["name", "email", "phone", "comment"];
+const DETAIL_FIELDS: readonly (keyof Details)[] = ["segment", "name", "email", "phone", "comment"];
 
 /** Map FastAPI's 422 body ({detail: [{loc: ["body", "email"], msg}]}) to per-field messages. */
 function fieldErrorsFrom(body: unknown): DetailErrors {

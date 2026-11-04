@@ -1,5 +1,6 @@
 "use client";
 
+import { MoonIcon, SunIcon } from "./customer/icons";
 import styles from "./ThemeToggle.module.css";
 
 type Theme = "light" | "dark";
@@ -24,12 +25,8 @@ export function ThemeToggle() {
 
   return (
     <button type="button" className={styles.toggle} onClick={toggle} aria-label="Toggle colour theme">
-      <span className={styles.sun} aria-hidden="true">
-        ☀
-      </span>
-      <span className={styles.moon} aria-hidden="true">
-        ☾
-      </span>
+      <SunIcon className={styles.sun} />
+      <MoonIcon className={styles.moon} />
     </button>
   );
 }

@@ -5,7 +5,7 @@ from decimal import Decimal
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import Alert, Channel, Customer, FeedbackResponse
+from app.models import Alert, Channel, Customer, FeedbackResponse, Segment
 from app.scoring import score_answers
 
 
@@ -29,7 +29,7 @@ def get_or_create_customer_by_phone(
         select(Customer).where(Customer.phone == phone).order_by(Customer.id.desc()).limit(1)
     )
     if customer is None:
-        customer = Customer(phone=phone, name=name or "SMS customer")
+        customer = Customer(phone=phone, name=name or "SMS customer", segment=Segment.PAINTER)
         db.add(customer)
     elif name:
         customer.name = name
@@ -44,13 +44,17 @@ def record_response(
     q2: int,
     q3: int,
     channel: Channel,
+    segment: Segment,
     comment: str | None = None,
 ) -> tuple[FeedbackResponse, Alert | None]:
     """Score the answers, save the response, and open an alert for detractors.
 
+    The customer's segment follows their latest answer.
+
     Everything is committed in one transaction: either all rows are saved or none are.
     """
     result = score_answers(q1, q2, q3)
+    customer.segment = segment
     response = FeedbackResponse(
         customer=customer,
         q1=q1,

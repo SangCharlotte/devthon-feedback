@@ -1,44 +1,72 @@
-.shell {
+/* Phones: the questionnaire fills the screen. */
+.canvas {
+  position: relative;
   display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
-  max-width: 480px;
   min-height: 100dvh;
-  margin: 0 auto;
-  padding: 16px;
+  background: var(--surface);
 }
 
-.header {
+.phone {
+  position: relative;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  font-weight: 800;
-  letter-spacing: -0.01em;
-}
-
-/* A little paint-palette logo */
-.logo {
-  width: 28px;
-  height: 28px;
-  border-radius: 9px 9px 9px 3px;
-  background: conic-gradient(#d64545, #e8833a, #e2b33c, #6fae5a, #2f9e6b, #33508f, #d64545);
-}
-
-.main {
   flex: 1;
-  display: flex;
   flex-direction: column;
-  justify-content: center;
+  width: 100%;
+  background: var(--surface);
 }
 
-.footer {
-  color: var(--muted);
-  font-size: 0.8rem;
-  text-align: center;
+.decor {
+  display: none;
+}
+
+/* Larger screens: a phone-sized card on the cream canvas, with paint around it. */
+@media (min-width: 640px) {
+  .canvas {
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    overflow: hidden;
+    background: var(--bg);
+  }
+
+  .phone {
+    flex: none;
+    width: 420px;
+    height: min(860px, calc(100dvh - 48px));
+    overflow-y: auto;
+    border: 1px solid var(--border);
+    border-radius: 36px;
+    box-shadow: var(--shadow), 0 30px 80px rgb(28 31 26 / 10%);
+  }
+
+  .decor {
+    position: absolute;
+    display: block;
+    pointer-events: none;
+  }
+
+  .decorTop {
+    top: 6%;
+    left: max(-80px, calc(50% - 640px));
+    width: 520px;
+    height: 190px;
+    transform: rotate(-12deg);
+  }
+
+  .decorBottom {
+    right: max(-60px, calc(50% - 660px));
+    bottom: 8%;
+    width: 560px;
+    height: 200px;
+    transform: rotate(-8deg) scaleX(-1);
+  }
+
+  .decorSide {
+    bottom: 12%;
+    left: calc(50% - 520px);
+    width: 300px;
+    height: 110px;
+    opacity: 0.55;
+    transform: rotate(14deg);
+  }
 }

@@ -7,7 +7,6 @@
   border-radius: 50%;
   background: var(--surface);
   color: var(--text);
-  font-size: 1.3rem;
   cursor: pointer;
   transition: transform 300ms ease;
 }
@@ -27,7 +26,7 @@
 }
 
 :global(:root[data-theme="dark"]) .sun {
-  display: inline;
+  display: block;
 }
 
 :global(:root[data-theme="dark"]) .moon {
@@ -36,7 +35,7 @@
 
 @media (prefers-color-scheme: dark) {
   :global(:root:not([data-theme="light"])) .sun {
-    display: inline;
+    display: block;
   }
 
   :global(:root:not([data-theme="light"])) .moon {

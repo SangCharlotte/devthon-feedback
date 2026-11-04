@@ -1,7 +1,15 @@
 // Client-side checks for instant feedback. The API re-validates everything:
 // the browser is never trusted, this only saves the customer a round trip.
 
-export type Details = { name: string; email: string; phone: string; comment: string };
+import type { Segment } from "./questions";
+
+export type Details = {
+  segment: Segment | null;
+  name: string;
+  email: string;
+  phone: string;
+  comment: string;
+};
 export type DetailErrors = Partial<Record<keyof Details, string>>;
 
 // Keep in sync with backend/app/phone.py.
@@ -21,6 +29,7 @@ export function validateDetails(details: Details): DetailErrors {
   const errors: DetailErrors = {};
   const name = details.name.trim();
 
+  if (!details.segment) errors.segment = "Please choose homeowner or painter";
   if (!name) errors.name = "Please tell us your name";
   else if (name.length > 100) errors.name = "Please keep your name under 100 characters";
   if (!EMAIL.test(details.email.trim())) errors.email = "Enter a valid email, e.g. jane@example.com";

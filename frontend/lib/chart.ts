@@ -3,10 +3,7 @@
 export type Point = { x: number; y: number };
 
 /** Map a value from a data domain onto pixels, e.g. score 1..5 -> y 200..0. */
-export function linearScale(
-  [d0, d1]: [number, number],
-  [r0, r1]: [number, number],
-): (value: number) => number {
+export function linearScale([d0, d1]: [number, number], [r0, r1]: [number, number]): (value: number) => number {
   const ratio = d1 === d0 ? 0 : (r1 - r0) / (d1 - d0);
   return (value) => r0 + (value - d0) * ratio;
 }
@@ -25,6 +22,44 @@ export function linePath(points: (Point | null)[]): string {
     }
     d += `${penDown ? "L" : "M"}${round(point.x)},${round(point.y)}`;
     penDown = true;
+  }
+  return d;
+}
+
+/**
+ * Like linePath, but each run of points is a monotone cubic curve (the
+ * Fritsch–Carlson method): smooth, yet it never overshoots a data point, so a
+ * share line can't bulge past 100% or dip below 0%.
+ */
+export function smoothPath(points: (Point | null)[]): string {
+  const runs: Point[][] = [[]];
+  for (const point of points) {
+    if (point === null) runs.push([]);
+    else runs[runs.length - 1].push(point);
+  }
+  return runs.map(monotoneRun).join("");
+}
+
+function monotoneRun(run: Point[]): string {
+  if (run.length === 0) return "";
+  const start = `M${round(run[0].x)},${round(run[0].y)}`;
+  if (run.length === 1) return start;
+  const slopes = run.slice(1).map((p, i) => (p.y - run[i].y) / (p.x - run[i].x || 1));
+  const tangents = run.map((_, i) => {
+    if (i === 0) return slopes[0];
+    if (i === run.length - 1) return slopes[i - 1];
+    const [a, b] = [slopes[i - 1], slopes[i]];
+    if (a * b <= 0) return 0; // a peak or valley: flat tangent, no overshoot
+    const [dxA, dxB] = [run[i].x - run[i - 1].x, run[i + 1].x - run[i].x];
+    return (3 * (dxA + dxB)) / ((2 * dxB + dxA) / a + (dxB + 2 * dxA) / b);
+  });
+  let d = start;
+  for (let i = 0; i < run.length - 1; i++) {
+    const [p, q] = [run[i], run[i + 1]];
+    const third = (q.x - p.x) / 3;
+    d +=
+      `C${round(p.x + third)},${round(p.y + tangents[i] * third)} ` +
+      `${round(q.x - third)},${round(q.y - tangents[i + 1] * third)} ${round(q.x)},${round(q.y)}`;
   }
   return d;
 }

@@ -97,7 +97,7 @@ def change_password(
     payload: PasswordChangeIn, user: Staff, db: DbSession, response: Response
 ) -> MeOut:
     """Change your own password. Logs you out everywhere else, keeps this browser in."""
-    if user.staff_id is None:
+    if user.is_owner:
         raise HTTPException(
             status_code=400,
             detail="The owner password is set in the server's .env file, not here",

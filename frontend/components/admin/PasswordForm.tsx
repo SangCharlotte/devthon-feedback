@@ -7,10 +7,10 @@ import { adminApi, UnauthorizedError } from "@/lib/admin";
 import styles from "./admin.module.css";
 import { MIN_PASSWORD } from "./TeamPanel";
 
-type Props = { onDone: () => void; onError: (error: unknown) => void };
+type Props = { onError: (error: unknown) => void };
 
 /** A rep replaces the temporary password their manager gave them. */
-export function PasswordForm({ onDone, onError }: Props) {
+export function PasswordForm({ onError }: Props) {
   const id = useId();
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
@@ -39,7 +39,7 @@ export function PasswordForm({ onDone, onError }: Props) {
   }
 
   return (
-    <form className={styles.inviteForm} onSubmit={submit} noValidate>
+    <form className={styles.form} onSubmit={submit} noValidate>
       <label htmlFor={`${id}-current`}>Current password</label>
       <input
         id={`${id}-current`}
@@ -69,9 +69,6 @@ export function PasswordForm({ onDone, onError }: Props) {
       />
       <button type="submit" className="btn btn-primary" disabled={saving}>
         {saving ? "Saving…" : "Change password"}
-      </button>
-      <button type="button" className="btn btn-secondary" onClick={onDone}>
-        Close
       </button>
       <p className={styles.muted} role="status">
         {message}

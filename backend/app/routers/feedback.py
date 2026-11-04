@@ -22,6 +22,7 @@ def submit_feedback(payload: FeedbackIn, db: DbSession, background: BackgroundTa
         q2=payload.q2,
         q3=payload.q3,
         channel=Channel.WEB,
+        segment=payload.segment,
         comment=payload.comment,
     )
     if alert is not None:

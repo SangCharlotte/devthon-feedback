@@ -1,13 +1,24 @@
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
+from app.auth import sync_owner_on_startup
 from app.config import get_settings
 from app.database import DbSession
-from app.routers import ai, alerts, auth, feedback, insights, sms, staff
+from app.routers import ai, alerts, auth, feedback, insights, sms, staff, ussd
 
-app = FastAPI(title="Company X Feedback API", version="0.1.0")
+
+@asynccontextmanager
+async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    sync_owner_on_startup()
+    yield
+
+
+app = FastAPI(title="Company X Feedback API", version="0.1.0", lifespan=lifespan)
 
 # Configure cross-origin resources sharing for frontend applications.
 app.add_middleware(
@@ -26,6 +37,7 @@ app.include_router(auth.router)
 app.include_router(insights.router)
 app.include_router(ai.router)
 app.include_router(staff.router)
+app.include_router(ussd.router)
 
 
 @app.get("/health")

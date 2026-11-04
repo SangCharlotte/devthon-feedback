@@ -115,3 +115,19 @@ def test_inbound_requires_token_when_configured(client, settings):
     assert client.post("/sms/inbound", data=form).status_code == 403
     assert client.post("/sms/inbound?token=wrong", data=form).status_code == 403
     assert client.post("/sms/inbound?token=s3cret", data=form).status_code == 200
+
+
+def test_sms_customers_are_painters(client, db_session, outbox):
+    client.post("/sms/invite", json={"name": "Mwangi", "phone": "0733 111 222"})
+    client.post("/sms/inbound", data={"from": "+254700999888", "text": "4 4 4"})
+
+    segments = {c.phone: c.segment for c in db_session.scalars(select(Customer))}
+    assert segments == {"+254733111222": "painter", "+254700999888": "painter"}
+
+
+def test_a_homeowner_who_texts_in_becomes_a_painter(client, db_session, outbox):
+    web = {"name": "Njeri", "email": "njeri@example.com", "phone": "0711 222 333"}
+    client.post("/feedback", json={**web, "q1": 4, "q2": 4, "q3": 4})
+    client.post("/sms/inbound", data={"from": "+254711222333", "text": "5 5 5"})
+
+    assert db_session.scalar(select(Customer)).segment == "painter"

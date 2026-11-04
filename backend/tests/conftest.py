@@ -15,8 +15,7 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
 
-from app import ai, mailer, notifications, sms
-from app.auth import hash_password
+from app import ai, auth, mailer, notifications, sms
 from app.config import get_settings
 from app.database import get_db
 from app.main import app
@@ -29,7 +28,6 @@ TEST_URL = MAIN_URL.set(database=f"{MAIN_URL.database}_test")
 
 ADMIN_USERNAME = "care-admin"
 ADMIN_PASSWORD = "correct horse battery"
-ADMIN_HASH = hash_password(ADMIN_PASSWORD)  # hashed once: scrypt is slow on purpose
 
 
 def _create_test_database() -> None:
@@ -45,17 +43,22 @@ def _create_test_database() -> None:
 
 
 @pytest.fixture(scope="session")
-def engine():
-    _create_test_database()
+def alembic_cfg() -> Config:
     cfg = Config(str(BACKEND_DIR / "alembic.ini"))
     cfg.set_main_option("script_location", str(BACKEND_DIR / "migrations"))
     cfg.set_main_option(
         "sqlalchemy.url", TEST_URL.render_as_string(hide_password=False).replace("%", "%%")
     )
+    return cfg
+
+
+@pytest.fixture(scope="session")
+def engine(alembic_cfg):
+    _create_test_database()
     # Up, down, up again: proves every migration can be both applied and reverted.
-    command.upgrade(cfg, "head")
-    command.downgrade(cfg, "base")
-    command.upgrade(cfg, "head")
+    command.upgrade(alembic_cfg, "head")
+    command.downgrade(alembic_cfg, "base")
+    command.upgrade(alembic_cfg, "head")
 
     test_engine = create_engine(TEST_URL)
     yield test_engine
@@ -79,14 +82,17 @@ def settings(monkeypatch):
     monkeypatch.setattr(current, "care_team_email", "care@companyx.test")
     monkeypatch.setattr(current, "care_team_phone", "")
     monkeypatch.setattr(current, "at_webhook_token", "")
+    monkeypatch.setattr(current, "at_ussd_code", "")
     monkeypatch.setattr(current, "admin_username", ADMIN_USERNAME)
-    monkeypatch.setattr(current, "admin_password_hash", ADMIN_HASH)
+    monkeypatch.setattr(current, "admin_password", ADMIN_PASSWORD)
     # Fake value for tests only; marked so the secret scanner knows it was reviewed.
     test_secret = "test-secret-that-is-long-enough-for-hs256"  # gitleaks:allow
     monkeypatch.setattr(current, "session_secret", test_secret)
     monkeypatch.setattr(current, "cookie_secure", False)
     # Never call the real (billed) AI from tests, even if a developer's .env has a key.
     monkeypatch.setattr(current, "ai_api_key", "")
+    monkeypatch.setattr(current, "ai_provider", "anthropic")
+    monkeypatch.setattr(current, "ai_model", "")
     monkeypatch.setattr(current, "ai_demo_mode", False)
     return current
 
@@ -116,6 +122,7 @@ def anon_client(db_session, engine, outbox, monkeypatch):
     test_sessions = sessionmaker(bind=engine)
     monkeypatch.setattr(notifications, "SessionLocal", test_sessions)
     monkeypatch.setattr(ai_tagging, "SessionLocal", test_sessions)
+    monkeypatch.setattr(auth, "SessionLocal", test_sessions)  # startup owner sync
     app.dependency_overrides[get_db] = lambda: db_session
     # Failed-login counters live in memory: start every test with a clean slate.
     auth_router.failures_by_ip.clear()

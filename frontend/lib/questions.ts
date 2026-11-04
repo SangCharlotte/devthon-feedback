@@ -3,6 +3,9 @@ export type Rating = (typeof RATINGS)[number];
 
 export type QuestionId = "q1" | "q2" | "q3";
 
+export const SEGMENTS = ["homeowner", "painter"] as const;
+export type Segment = (typeof SEGMENTS)[number];
+
 export const QUESTIONS: readonly { id: QuestionId; title: string; short: string; hint: string }[] =
   [
     {

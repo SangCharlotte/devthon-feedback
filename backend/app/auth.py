@@ -4,18 +4,17 @@ Passwords are never stored - only a slow, salted scrypt hash. After a successful
 login the browser gets an HttpOnly cookie holding a signed token (a JWT), so
 JavaScript on the page can't read it and nobody can forge one without SESSION_SECRET.
 
-Two kinds of account:
-- the owner, set in .env (ADMIN_USERNAME / ADMIN_PASSWORD_HASH): always works, so
-  the team can never be locked out of its own dashboard;
-- staff accounts in the database, created by a manager from the dashboard.
+Every account is a row in the staff table. The owner is the one named by
+ADMIN_USERNAME / ADMIN_PASSWORD in .env: sync_owner() writes it at startup as an active
+manager, so the team can never be locked out of its own dashboard. Managers add the
+rest from the dashboard.
 """
 
 import base64
-import getpass
 import hashlib
 import hmac
+import logging
 import os
-import sys
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from functools import lru_cache
@@ -27,7 +26,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
-from app.database import DbSession
+from app.database import DbSession, SessionLocal
 from app.models import Role, StaffUser
 
 COOKIE_NAME = "admin_session"
@@ -37,6 +36,8 @@ _ALGORITHM = "HS256"
 # scrypt cost: 2**14 rounds x 8 blocks = 16 MB of memory per guess, which makes
 # brute-forcing a stolen hash expensive while a single login stays ~50 ms.
 _N, _R, _P = 2**14, 8, 1
+
+log = logging.getLogger(__name__)
 
 
 def _b64(data: bytes) -> str:
@@ -72,29 +73,58 @@ class CurrentUser:
     username: str
     display_name: str
     role: Role
-    staff_id: int | None = None  # None = the owner account from .env
+    staff_id: int
 
     @property
     def is_manager(self) -> bool:
         return self.role == Role.MANAGER
+
+    @property
+    def is_owner(self) -> bool:
+        return self.username == owner_username()
 
 
 def normalize_username(username: str) -> str:
     return username.strip().lower()
 
 
-def _owner() -> CurrentUser | None:
-    settings = get_settings()
-    if not settings.admin_password_hash:
-        return None
-    name = normalize_username(settings.admin_username)
-    return CurrentUser(username=name, display_name=name, role=Role.MANAGER)
+def owner_username() -> str:
+    return normalize_username(get_settings().admin_username)
 
 
-def _owner_version() -> str:
-    # The owner has no database row to bump. Instead the token carries a fingerprint
-    # of the password hash: set a new password in .env and old owner sessions die.
-    return hashlib.sha256(get_settings().admin_password_hash.encode()).hexdigest()[:16]
+def sync_owner(db: Session) -> None:
+    """Make the owner's row match .env. Safe to run on every startup.
+
+    A changed ADMIN_PASSWORD is rehashed and bumps session_version, so the owner's old
+    sessions end. An empty ADMIN_PASSWORD deactivates the owner: no password, no login.
+    """
+    password = get_settings().admin_password
+    name = owner_username()
+    owner = db.scalar(select(StaffUser).where(StaffUser.username == name))
+    if not password:
+        if owner and owner.is_active:
+            owner.is_active = False
+            owner.session_version += 1
+            db.commit()
+        return
+    if owner is None:
+        owner = StaffUser(username=name, display_name=name, password_hash=hash_password(password))
+        db.add(owner)
+    elif not verify_password(password, owner.password_hash):
+        owner.password_hash = hash_password(password)
+        owner.session_version += 1
+    owner.role = Role.MANAGER
+    owner.is_active = True
+    db.commit()
+
+
+def sync_owner_on_startup() -> None:
+    # Log and carry on: /health and the customer questionnaire don't need the owner.
+    try:
+        with SessionLocal() as db:
+            sync_owner(db)
+    except Exception:
+        log.exception("Could not sync the owner account from .env")
 
 
 def _staff_user(staff: StaffUser) -> CurrentUser:
@@ -110,10 +140,6 @@ def authenticate(db: Session, username: str, password: str) -> CurrentUser | Non
     """The account these credentials belong to, or None. Same slow work either way,
     so response timing doesn't reveal which usernames exist."""
     name = normalize_username(username)
-    owner = _owner()
-    if owner and hmac.compare_digest(name.encode(), owner.username.encode()):
-        return owner if verify_password(password, get_settings().admin_password_hash) else None
-
     staff = db.scalar(select(StaffUser).where(StaffUser.username == name))
     if staff is None or not staff.is_active:
         verify_password(password, _dummy_hash())
@@ -126,10 +152,7 @@ def authenticate(db: Session, username: str, password: str) -> CurrentUser | Non
 
 def create_session_token(user: CurrentUser, db: Session) -> str:
     settings = get_settings()
-    if user.staff_id is None:
-        version: int | str = _owner_version()
-    else:
-        version = db.get(StaffUser, user.staff_id).session_version
+    version = db.get(StaffUser, user.staff_id).session_version
     expires = datetime.now(UTC) + timedelta(hours=settings.session_hours)
     claims = {"sub": user.username, "ver": version, "exp": expires}
     return jwt.encode(claims, settings.session_secret, _ALGORITHM)
@@ -153,14 +176,9 @@ def require_staff(
     except jwt.InvalidTokenError as exc:
         raise HTTPException(status_code=401, detail="Session expired, please log in") from exc
 
-    owner = _owner()
-    if owner and claims.get("sub") == owner.username:
-        if claims.get("ver") == _owner_version():
-            return owner
-    else:
-        staff = db.scalar(select(StaffUser).where(StaffUser.username == claims.get("sub")))
-        if staff and staff.is_active and claims.get("ver") == staff.session_version:
-            return _staff_user(staff)
+    staff = db.scalar(select(StaffUser).where(StaffUser.username == claims.get("sub")))
+    if staff and staff.is_active and claims.get("ver") == staff.session_version:
+        return _staff_user(staff)
     raise HTTPException(status_code=401, detail="Your session has ended, please log in again")
 
 
@@ -173,15 +191,3 @@ def require_manager(user: Annotated[CurrentUser, Depends(require_staff)]) -> Cur
 
 Staff = Annotated[CurrentUser, Depends(require_staff)]
 Manager = Annotated[CurrentUser, Depends(require_manager)]
-
-
-if __name__ == "__main__":
-    # docker compose run --rm --no-deps backend python -m app.auth hash-password
-    if sys.argv[1:] != ["hash-password"]:
-        sys.exit("usage: python -m app.auth hash-password")
-    first = getpass.getpass("New admin password: ")
-    if len(first) < MIN_PASSWORD_LENGTH:
-        sys.exit("Use at least 10 characters.")
-    if getpass.getpass("Repeat it: ") != first:
-        sys.exit("Passwords didn't match.")
-    print(hash_password(first))

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { LoginForm } from "@/components/admin/LoginForm";
+import { LoginScreen } from "@/components/admin/LoginScreen";
 
 export const metadata: Metadata = {
   title: "Sign in · Company X Paints",
@@ -9,8 +10,8 @@ export const metadata: Metadata = {
 
 export default function LoginPage() {
   return (
-    <main style={{ padding: 16 }}>
+    <LoginScreen>
       <LoginForm />
-    </main>
+    </LoginScreen>
   );
 }

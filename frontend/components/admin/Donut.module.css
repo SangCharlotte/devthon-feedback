@@ -1,0 +1,99 @@
+.wrap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 1.25rem 1.5rem;
+}
+
+.donut {
+  flex: none;
+}
+
+.track {
+  fill: none;
+  stroke: var(--grid);
+}
+
+/* The 2px gaps between slices come from donutArcs(): the card surface shows through. */
+.segment {
+  transition: opacity 150ms ease;
+}
+
+.segment[data-dim="true"] {
+  opacity: 0.35;
+}
+
+.centreValue {
+  fill: var(--text);
+  font-size: 30px;
+  font-weight: 800;
+  text-anchor: middle;
+}
+
+.centreLabel {
+  fill: var(--muted);
+  font-size: 13px;
+  text-anchor: middle;
+}
+
+.legend {
+  flex: 1 1 200px;
+  display: grid;
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  width: 100%;
+  min-height: 48px;
+  padding: 0.35rem 0.6rem;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  cursor: default;
+}
+
+.legendItem[data-active="true"] {
+  background: var(--surface-2);
+}
+
+.legendItem:focus-visible {
+  outline: 3px solid var(--accent);
+}
+
+.swatch {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+}
+
+.name {
+  flex: 1;
+  display: grid;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.name small {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.count {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.count strong {
+  color: var(--text);
+}

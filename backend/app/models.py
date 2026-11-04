@@ -28,6 +28,12 @@ from app.scoring import Category
 class Channel(StrEnum):
     WEB = "web"
     SMS = "sms"
+    USSD = "ussd"
+
+
+class Segment(StrEnum):
+    HOMEOWNER = "homeowner"
+    PAINTER = "painter"
 
 
 class AlertStatus(StrEnum):
@@ -55,6 +61,11 @@ class Customer(Base):
     # Support phone-only identification for inbound SMS channels
     email: Mapped[str | None] = mapped_column(String(255), unique=True)
     phone: Mapped[str | None] = mapped_column(String(20), index=True)
+    segment: Mapped[Segment] = mapped_column(
+        _string_enum(Segment, "segment"),
+        default=Segment.HOMEOWNER,
+        server_default=Segment.HOMEOWNER.value,
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     responses: Mapped[list["FeedbackResponse"]] = relationship(back_populates="customer")

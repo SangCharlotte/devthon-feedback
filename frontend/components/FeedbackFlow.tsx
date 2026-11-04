@@ -1,32 +1,29 @@
 "use client";
 
-import {
-  useEffect,
-  useId,
-  useRef,
-  useState,
-  type FormEvent,
-  type InputHTMLAttributes,
-  type TextareaHTMLAttributes,
-} from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 
 import { ApiError, submitFeedback, type FeedbackResult } from "@/lib/api";
-import { QUESTIONS, type QuestionId, type Rating } from "@/lib/questions";
+import { QUESTIONS, type QuestionId, type Rating, type Segment } from "@/lib/questions";
 import { validateDetails, type DetailErrors, type Details } from "@/lib/validation";
 
+import { AboutYou } from "./customer/AboutYou";
+import { ArrowRightIcon, LightbulbIcon } from "./customer/icons";
+import screen from "./customer/screen.module.css";
+import { TopBar } from "./customer/TopBar";
+import { Welcome } from "./customer/Welcome";
 import styles from "./FeedbackFlow.module.css";
 import { RatingPicker } from "./RatingPicker";
 import { ThankYou } from "./ThankYou";
 
-const DETAILS_STEP = QUESTIONS.length;
-const TOTAL_STEPS = QUESTIONS.length + 1;
+type Step = "welcome" | QuestionId | "about";
+const STEPS: readonly Step[] = ["welcome", ...QUESTIONS.map((q) => q.id), "about"];
 const AUTO_ADVANCE_MS = 450;
-const EMPTY_DETAILS: Details = { name: "", email: "", phone: "", comment: "" };
+const EMPTY_DETAILS: Details = { segment: null, name: "", email: "", phone: "", comment: "" };
 
 type Answers = Partial<Record<QuestionId, Rating>>;
 
 export function FeedbackFlow() {
-  const [step, setStep] = useState(0);
+  const [stepIndex, setStepIndex] = useState(0);
   const [answers, setAnswers] = useState<Answers>({});
   const [details, setDetails] = useState<Details>(EMPTY_DETAILS);
   const [errors, setErrors] = useState<DetailErrors>({});
@@ -34,13 +31,27 @@ export function FeedbackFlow() {
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<FeedbackResult | null>(null);
   const advanceTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const root = useRef<HTMLDivElement>(null);
+  const mounted = useRef(false);
+
+  const step = STEPS[stepIndex];
+  const screenKey = result ? "thanks" : step;
 
   // Never fire a pending auto-advance after the component is gone.
   useEffect(() => () => clearTimeout(advanceTimer.current), []);
 
+  // Each new screen moves focus to its heading, so keyboard and screen reader users start at the top of it.
+  useEffect(() => {
+    if (!mounted.current) {
+      mounted.current = true;
+      return;
+    }
+    root.current?.querySelector<HTMLElement>("[data-step-heading]")?.focus();
+  }, [screenKey]);
+
   function goTo(next: number) {
     clearTimeout(advanceTimer.current);
-    setStep(next);
+    setStepIndex(next);
   }
 
   function handleRate(id: QuestionId, rating: Rating, viaPointer: boolean) {
@@ -49,13 +60,18 @@ export function FeedbackFlow() {
     // Keyboard users move with arrows, so they press "Next" themselves.
     clearTimeout(advanceTimer.current);
     if (viaPointer) {
-      advanceTimer.current = setTimeout(() => setStep((s) => s + 1), AUTO_ADVANCE_MS);
+      advanceTimer.current = setTimeout(() => setStepIndex((s) => s + 1), AUTO_ADVANCE_MS);
     }
   }
 
-  function updateDetail(field: keyof Details, value: string) {
+  function updateDetail(field: Exclude<keyof Details, "segment">, value: string) {
     setDetails((prev) => ({ ...prev, [field]: value }));
     if (errors[field]) setErrors((prev) => ({ ...prev, [field]: undefined }));
+  }
+
+  function chooseSegment(segment: Segment) {
+    setDetails((prev) => ({ ...prev, segment }));
+    setErrors((prev) => ({ ...prev, segment: undefined }));
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -64,17 +80,19 @@ export function FeedbackFlow() {
 
     const found = validateDetails(details);
     setErrors(found);
-    if (Object.keys(found).length > 0) return;
+    if (Object.keys(found).length > 0 || !details.segment) return;
 
     const { q1, q2, q3 } = answers;
     if (!q1 || !q2 || !q3) {
-      goTo(QUESTIONS.findIndex((q) => !answers[q.id]));
+      const missing = QUESTIONS.find((q) => !answers[q.id]);
+      if (missing) goTo(STEPS.indexOf(missing.id));
       return;
     }
 
     setSubmitting(true);
     try {
       const saved = await submitFeedback({
+        segment: details.segment,
         name: details.name.trim(),
         email: details.email.trim(),
         phone: details.phone.trim(),
@@ -105,175 +123,85 @@ export function FeedbackFlow() {
     setResult(null);
   }
 
-  if (result) {
-    return <ThankYou result={result} name={details.name} onRestart={restart} />;
+  function renderScreen() {
+    if (result) return <ThankYou result={result} onRestart={restart} />;
+    if (step === "welcome") return <Welcome onStart={() => goTo(1)} />;
+    if (step === "about") {
+      return (
+        <AboutYou
+          details={details}
+          errors={errors}
+          submitError={submitError}
+          submitting={submitting}
+          onSegment={chooseSegment}
+          onChange={updateDetail}
+          onBack={() => goTo(stepIndex - 1)}
+          onSubmit={handleSubmit}
+        />
+      );
+    }
+
+    const number = QUESTIONS.findIndex((q) => q.id === step) + 1;
+    const question = QUESTIONS[number - 1];
+    const percent = Math.round((number / QUESTIONS.length) * 100);
+    return (
+      <section className={screen.screen} aria-labelledby={`${question.id}-legend`}>
+        <TopBar title={`Question ${number} of ${QUESTIONS.length}`} onBack={() => goTo(stepIndex - 1)} />
+
+        <div className={styles.progressRow}>
+          <div
+            className={styles.progress}
+            role="progressbar"
+            aria-label="Progress"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={percent}
+          >
+            <div className={styles.progressFill} style={{ width: `${percent}%` }} />
+          </div>
+          <span className={styles.percent} aria-hidden="true">
+            {percent}%
+          </span>
+        </div>
+
+        {/* A new key on each question remounts the body, which replays the slide-in. */}
+        <div key={step} className={`${screen.body} ${styles.questionBody} ${screen.enter}`}>
+          <RatingPicker
+            name={question.id}
+            legend={question.title}
+            hint={question.hint}
+            value={answers[question.id] ?? null}
+            onChange={(rating, viaPointer) => handleRate(question.id, rating, viaPointer)}
+          />
+
+          <aside className={styles.tip}>
+            <span className={styles.tipIcon}>
+              <LightbulbIcon />
+            </span>
+            <span>
+              <strong>Your opinion matters!</strong>
+              <span className={styles.tipText}>Honest answers help us make better paint.</span>
+            </span>
+          </aside>
+        </div>
+
+        <div className={screen.actions}>
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => goTo(stepIndex + 1)}
+            disabled={!answers[question.id]}
+          >
+            Next <ArrowRightIcon />
+          </button>
+        </div>
+      </section>
+    );
   }
 
-  const question = QUESTIONS[step];
-
   return (
-    <section className="card">
-      <div
-        className={styles.progress}
-        role="progressbar"
-        aria-label="Progress"
-        aria-valuemin={1}
-        aria-valuemax={TOTAL_STEPS}
-        aria-valuenow={step + 1}
-      >
-        <div
-          className={styles.progressFill}
-          style={{ width: `${((step + 1) / TOTAL_STEPS) * 100}%` }}
-        />
-      </div>
-
-      {/* A new key on each step remounts it, which replays the slide-in animation. */}
-      <div key={step} className={styles.screen}>
-        {question ? (
-          <>
-            <p className={styles.eyebrow}>
-              Question {step + 1} of {QUESTIONS.length}
-            </p>
-            <RatingPicker
-              name={question.id}
-              legend={question.title}
-              hint={question.hint}
-              value={answers[question.id] ?? null}
-              onChange={(rating, viaPointer) => handleRate(question.id, rating, viaPointer)}
-            />
-            <div className={styles.nav}>
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={() => goTo(step - 1)}
-                disabled={step === 0}
-              >
-                Back
-              </button>
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={() => goTo(step + 1)}
-                disabled={!answers[question.id]}
-              >
-                Next
-              </button>
-            </div>
-          </>
-        ) : (
-          <form className={styles.form} onSubmit={handleSubmit} noValidate>
-            <div>
-              <p className={styles.eyebrow}>Last step</p>
-              <h2 className={styles.title}>Almost done!</h2>
-              <p className={styles.subtitle}>So we can thank you, or make things right.</p>
-            </div>
-
-            <Field
-              label="Your name"
-              autoComplete="name"
-              value={details.name}
-              error={errors.name}
-              onChange={(e) => updateDetail("name", e.target.value)}
-            />
-            <Field
-              label="Email"
-              type="email"
-              inputMode="email"
-              autoComplete="email"
-              value={details.email}
-              error={errors.email}
-              onChange={(e) => updateDetail("email", e.target.value)}
-            />
-            <Field
-              label="Phone number"
-              type="tel"
-              inputMode="tel"
-              autoComplete="tel"
-              placeholder="0712 345 678"
-              value={details.phone}
-              error={errors.phone}
-              onChange={(e) => updateDetail("phone", e.target.value)}
-            />
-            <TextArea
-              label="Anything else?"
-              optional
-              rows={3}
-              maxLength={1000}
-              value={details.comment}
-              error={errors.comment}
-              onChange={(e) => updateDetail("comment", e.target.value)}
-            />
-
-            {submitError && (
-              <p className={styles.alert} role="alert">
-                {submitError}
-              </p>
-            )}
-
-            <div className={styles.nav}>
-              <button type="button" className="btn btn-secondary" onClick={() => goTo(DETAILS_STEP - 1)}>
-                Back
-              </button>
-              <button type="submit" className="btn btn-primary" disabled={submitting}>
-                {submitting ? "Sending…" : "Send feedback"}
-              </button>
-            </div>
-          </form>
-        )}
-      </div>
-    </section>
-  );
-}
-
-type FieldProps = { label: string; error?: string; optional?: boolean };
-
-function Field({ label, error, optional, ...input }: FieldProps & InputHTMLAttributes<HTMLInputElement>) {
-  const id = useId();
-  return (
-    <div className={styles.field}>
-      <label htmlFor={id}>
-        {label} {optional && <span className={styles.optional}>(optional)</span>}
-      </label>
-      <input
-        id={id}
-        className={styles.input}
-        aria-invalid={Boolean(error)}
-        aria-describedby={error ? `${id}-error` : undefined}
-        {...input}
-      />
-      {error && (
-        <p id={`${id}-error`} className={styles.error}>
-          {error}
-        </p>
-      )}
-    </div>
-  );
-}
-
-function TextArea({
-  label,
-  error,
-  optional,
-  ...textarea
-}: FieldProps & TextareaHTMLAttributes<HTMLTextAreaElement>) {
-  const id = useId();
-  return (
-    <div className={styles.field}>
-      <label htmlFor={id}>
-        {label} {optional && <span className={styles.optional}>(optional)</span>}
-      </label>
-      <textarea
-        id={id}
-        className={`${styles.input} ${styles.textarea}`}
-        aria-invalid={Boolean(error)}
-        aria-describedby={error ? `${id}-error` : undefined}
-        {...textarea}
-      />
-      {error && (
-        <p id={`${id}-error`} className={styles.error}>
-          {error}
-        </p>
-      )}
+    <div ref={root} className={styles.flow}>
+      {renderScreen()}
     </div>
   );
 }

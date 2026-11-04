@@ -8,8 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
-from app.auth import Manager, hash_password, normalize_username, require_manager
-from app.config import get_settings
+from app.auth import Manager, hash_password, owner_username, require_manager
 from app.database import DbSession
 from app.models import Role, StaffUser
 from app.schemas import StaffIn, StaffOut, StaffUpdate
@@ -35,7 +34,7 @@ def list_staff(db: DbSession) -> list[StaffOut]:
 @router.post("", status_code=201)
 def add_staff(payload: StaffIn, db: DbSession) -> StaffOut:
     # The owner's name (from .env) is reserved: one name, one person.
-    if payload.username == normalize_username(get_settings().admin_username):
+    if payload.username == owner_username():
         raise HTTPException(status_code=409, detail=USERNAME_TAKEN)
     staff = StaffUser(
         username=payload.username,
@@ -57,6 +56,9 @@ def add_staff(payload: StaffIn, db: DbSession) -> StaffOut:
 @router.patch("/{staff_id}")
 def update_staff(staff_id: int, change: StaffUpdate, db: DbSession, manager: Manager) -> StaffOut:
     staff = _get_staff(db, staff_id)
+    if staff.username == owner_username():
+        # Startup would undo any change anyway: .env is the owner's source of truth.
+        raise HTTPException(status_code=400, detail="The owner account is managed in .env")
     if staff.id == manager.staff_id and (
         change.is_active is False or change.role not in (None, Role.MANAGER)
     ):

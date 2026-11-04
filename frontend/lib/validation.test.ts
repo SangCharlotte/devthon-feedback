@@ -19,15 +19,26 @@ describe("normalizePhone", () => {
 });
 
 describe("validateDetails", () => {
-  const valid = { name: "Wanjiku", email: "w@example.com", phone: "0712345678", comment: "" };
+  const valid = {
+    segment: "homeowner",
+    name: "Wanjiku",
+    email: "w@example.com",
+    phone: "0712345678",
+    comment: "",
+  } as const;
 
   it("accepts valid details", () => {
     expect(validateDetails(valid)).toEqual({});
   });
 
   it("flags every invalid field", () => {
-    const errors = validateDetails({ name: "  ", email: "nope", phone: "12", comment: "" });
-    expect(Object.keys(errors).sort()).toEqual(["email", "name", "phone"]);
+    const errors = validateDetails({ segment: null, name: "  ", email: "nope", phone: "12", comment: "" });
+    expect(Object.keys(errors).sort()).toEqual(["email", "name", "phone", "segment"]);
+  });
+
+  it("requires a homeowner or painter choice", () => {
+    expect(validateDetails({ ...valid, segment: null }).segment).toBe("Please choose homeowner or painter");
+    expect(validateDetails({ ...valid, segment: "painter" })).toEqual({});
   });
 
   it("limits comment length", () => {

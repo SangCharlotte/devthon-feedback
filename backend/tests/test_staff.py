@@ -61,7 +61,7 @@ def test_manager_adds_a_rep(client, rep):
     assert rep["username"] == "wanjiru.k"  # stored lowercase
     assert rep["role"] == "rep" and rep["is_active"] is True
     assert "password" not in rep and "password_hash" not in rep
-    assert [s["username"] for s in client.get("/staff").json()] == ["wanjiru.k"]
+    assert {s["username"] for s in client.get("/staff").json()} == {"care-admin", "wanjiru.k"}
 
 
 def test_password_is_stored_only_as_a_hash(rep, db_session):
@@ -197,3 +197,17 @@ def test_the_owner_password_is_only_changed_in_env(client):
     response = client.post("/auth/password", json=change)
     assert response.status_code == 400
     assert ".env" in response.json()["detail"]
+
+
+@pytest.mark.parametrize("change", [{"is_active": False}, {"role": "rep"}, {"password": "x" * 12}])
+def test_the_owner_row_is_managed_only_in_env(client, rep, rep_browser, change):
+    owner = next(s for s in client.get("/staff").json() if s["username"] == "care-admin")
+    assert client.patch(f"/staff/{rep['id']}", json={"role": "manager"}).status_code == 200
+    response = rep_browser.patch(f"/staff/{owner['id']}", json=change)
+    assert response.status_code == 400
+    assert ".env" in response.json()["detail"]
+
+
+def test_only_the_env_owner_is_flagged_as_owner(client, rep):
+    flags = {s["username"]: s["is_owner"] for s in client.get("/staff").json()}
+    assert flags == {"care-admin": True, "wanjiru.k": False}

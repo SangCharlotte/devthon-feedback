@@ -1,0 +1,345 @@
+.loading,
+.muted {
+  margin: 0.25rem 0 0.75rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-areas: "kpis" "attention" "trend" "segments" "themes" "latest";
+  transition: opacity 150ms ease;
+}
+
+.grid[data-loading="true"] {
+  opacity: 0.6;
+}
+
+@media (min-width: 1100px) {
+  .grid {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+    grid-template-areas:
+      "kpis kpis"
+      "trend segments"
+      "themes attention"
+      "latest latest";
+    gap: 1.25rem;
+  }
+}
+
+.trend {
+  grid-area: trend;
+}
+
+.segments {
+  grid-area: segments;
+}
+
+.themes {
+  grid-area: themes;
+}
+
+.latest {
+  grid-area: latest;
+}
+
+/* ---------- KPI cards ---------- */
+.kpis {
+  grid-area: kpis;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (min-width: 1100px) {
+  .kpis {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1.25rem;
+  }
+}
+
+.kpi {
+  --kpi-tint: var(--tint-green);
+  --kpi-ink: var(--leaf);
+  position: relative;
+  padding: 1rem;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: linear-gradient(150deg, var(--kpi-tint), var(--surface) 75%);
+  box-shadow: var(--shadow);
+}
+
+@media (min-width: 600px) {
+  .kpi {
+    padding: 1.25rem 1.4rem;
+  }
+}
+
+.kpi[data-tone="yellow"] {
+  --kpi-tint: var(--tint-yellow);
+  --kpi-ink: color-mix(in srgb, var(--yellow) 70%, var(--text));
+}
+
+.kpi[data-tone="violet"] {
+  --kpi-tint: var(--tint-violet);
+  --kpi-ink: color-mix(in srgb, var(--brand) 55%, var(--text));
+}
+
+.kpi[data-tone="red"] {
+  --kpi-tint: var(--tint-red);
+  --kpi-ink: var(--red);
+}
+
+.kpiIcon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin-bottom: 0.75rem;
+  border-radius: 14px;
+  background: var(--kpi-tint);
+  color: var(--kpi-ink);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--kpi-ink) 18%, transparent);
+}
+
+.kpiLabel {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.kpiValue {
+  margin: 0.15rem 0 0;
+  font-size: clamp(1.8rem, 6vw, 2.5rem);
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+
+.kpiValue small {
+  margin-left: 0.2rem;
+  color: var(--muted);
+  font-size: 0.5em;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.kpiSecondary {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.delta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
+  margin: 0.6rem 0 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.delta strong {
+  color: var(--leaf);
+}
+
+.delta svg {
+  color: var(--leaf);
+}
+
+.delta[data-good="false"] strong,
+.delta[data-good="false"] svg {
+  color: var(--red);
+}
+
+.delta[data-trend="flat"] strong {
+  color: var(--muted);
+}
+
+/* ---------- Themes ---------- */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chip {
+  --chip-tint: var(--tint-green);
+  --chip-ink: color-mix(in srgb, var(--cat-promoter) 75%, var(--text));
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 40px;
+  padding: 0 0.9rem;
+  border-radius: 999px;
+  background: var(--chip-tint);
+  color: var(--chip-ink);
+  font-weight: 700;
+}
+
+.chip[data-tone="mixed"] {
+  --chip-tint: var(--tint-yellow);
+  --chip-ink: color-mix(in srgb, var(--cat-passive) 50%, var(--text));
+}
+
+.chip[data-tone="negative"] {
+  --chip-tint: var(--tint-red);
+  --chip-ink: color-mix(in srgb, var(--cat-detractor) 80%, var(--text));
+}
+
+.chipTopic {
+  color: var(--text);
+  text-transform: capitalize;
+}
+
+/* ---------- Attention ---------- */
+.attention {
+  grid-area: attention;
+  min-height: 220px;
+  border-color: color-mix(in srgb, var(--red) 25%, var(--border));
+  background: linear-gradient(140deg, var(--tint-red), var(--surface) 90%);
+}
+
+.attentionBody {
+  position: relative;
+  z-index: 1;
+  max-width: calc(100% - 110px);
+}
+
+.attentionBody h2 {
+  margin: 0.75rem 0 0.25rem;
+  font-size: 1.1rem;
+  font-weight: 800;
+}
+
+.attentionIcon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--red);
+  box-shadow: var(--shadow-sm);
+}
+
+.attentionLead {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.attentionLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 44px;
+  padding: 0 1.1rem;
+  border-radius: 999px;
+  background: var(--red);
+  color: #fff;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.attentionLink:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.brushArt {
+  position: absolute;
+  right: 0.5rem;
+  bottom: 0.5rem;
+  width: 140px;
+  height: 122px;
+}
+
+/* ---------- Latest feedback ---------- */
+.cardNote {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.viewAll {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: var(--accent);
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.latestList {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (min-width: 1100px) {
+  .latestList {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.latestItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  padding: 0.75rem;
+  border-radius: 16px;
+  background: var(--surface-2);
+}
+
+/* A response the poll just found slides in and glows briefly. */
+.latestItem[data-new="true"] {
+  animation: arrive 600ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes arrive {
+  from {
+    opacity: 0;
+    transform: translateY(-14px) scale(0.98);
+    box-shadow: 0 0 0 3px var(--leaf);
+  }
+}
+
+.latestText {
+  flex: 1;
+  min-width: 0;
+}
+
+.latestText p {
+  margin: 0;
+}
+
+.latestText .muted {
+  margin: 0;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.latestQuote {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.85rem;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}

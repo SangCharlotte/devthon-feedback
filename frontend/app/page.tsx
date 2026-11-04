@@ -1,26 +1,18 @@
+import { BrushStroke } from "@/components/brand/Brand";
 import { FeedbackFlow } from "@/components/FeedbackFlow";
-import { ThemeToggle } from "@/components/ThemeToggle";
 
 import styles from "./page.module.css";
 
 export default function HomePage() {
   return (
-    <div className={styles.shell}>
-      <header className={styles.header}>
-        <span className={styles.brand}>
-          <span className={styles.logo} aria-hidden="true" />
-          Company X Paints
-        </span>
-        <ThemeToggle />
-      </header>
+    <div className={styles.canvas}>
+      <BrushStroke tone="warm" className={`${styles.decor} ${styles.decorTop}`} />
+      <BrushStroke tone="green" className={`${styles.decor} ${styles.decorBottom}`} />
+      <BrushStroke tone="sunset" className={`${styles.decor} ${styles.decorSide}`} />
 
-      <main className={styles.main}>
+      <main className={styles.phone}>
         <FeedbackFlow />
       </main>
-
-      <footer className={styles.footer}>
-        Takes under a minute · We only use your details to follow up on your feedback
-      </footer>
     </div>
   );
 }

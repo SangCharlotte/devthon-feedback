@@ -74,3 +74,15 @@ def test_invalid_input_is_rejected_and_nothing_saved(client, db_session):
     assert client.post("/feedback", json=_payload(name="   ")).status_code == 422
     assert _count(db_session, Customer) == 0
     assert _count(db_session, FeedbackResponse) == 0
+
+
+def test_segment_defaults_to_homeowner_and_the_latest_answer_wins(client, db_session):
+    client.post("/feedback", json=_payload())
+    customer = db_session.scalar(select(Customer))
+    assert customer.segment == "homeowner"
+
+    client.post("/feedback", json=_payload(segment="painter"))
+    db_session.refresh(customer)
+    assert customer.segment == "painter"
+
+    assert client.post("/feedback", json=_payload(segment="landlord")).status_code == 422

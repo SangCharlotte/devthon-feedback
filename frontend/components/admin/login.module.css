@@ -1,0 +1,144 @@
+.screen {
+  display: grid;
+  min-height: 100dvh;
+}
+
+@media (min-width: 900px) {
+  .screen {
+    grid-template-columns: minmax(360px, 1fr) minmax(0, 1.1fr);
+  }
+}
+
+.panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  padding: 1.5rem 16px 2rem;
+  overflow: hidden;
+  background: linear-gradient(160deg, var(--brand), var(--brand-strong));
+  color: #fff;
+}
+
+:global(:root[data-theme="dark"]) .panel {
+  background: linear-gradient(160deg, #13261a, #0e1c13);
+}
+
+@media (prefers-color-scheme: dark) {
+  :global(:root:not([data-theme="light"])) .panel {
+    background: linear-gradient(160deg, #13261a, #0e1c13);
+  }
+}
+
+@media (min-width: 900px) {
+  .panel {
+    justify-content: space-between;
+    padding: 2.5rem;
+  }
+}
+
+.logo {
+  position: relative;
+  color: #fff;
+}
+
+.pitch {
+  position: relative;
+  max-width: 26rem;
+}
+
+.pitch h2 {
+  margin: 0 0 0.5rem;
+  font-size: clamp(1.6rem, 5vw, 2.6rem);
+  font-weight: 800;
+}
+
+.pitch p {
+  margin: 0;
+  color: rgb(255 255 255 / 80%);
+}
+
+.can {
+  position: relative;
+  display: none;
+}
+
+@media (min-width: 900px) {
+  .can {
+    display: block;
+  }
+}
+
+.strokeTop,
+.strokeBottom {
+  position: absolute;
+  pointer-events: none;
+}
+
+.strokeTop {
+  top: -18px;
+  right: -60px;
+  width: 300px;
+  height: 110px;
+  opacity: 0.5;
+  transform: rotate(8deg);
+}
+
+.strokeBottom {
+  right: -40px;
+  bottom: -10px;
+  width: 420px;
+  height: 150px;
+  opacity: 0.45;
+  transform: rotate(-6deg);
+}
+
+.formSide {
+  display: grid;
+  place-items: center;
+  padding: 2rem 16px 3rem;
+}
+
+.form {
+  display: grid;
+  gap: 0.5rem;
+  width: 100%;
+  max-width: 400px;
+}
+
+.form h1 {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 800;
+}
+
+.lead {
+  margin: 0 0 1rem;
+  color: var(--muted);
+}
+
+.form label {
+  margin-top: 0.5rem;
+  font-weight: 700;
+}
+
+.input {
+  min-height: 52px;
+  padding: 0 1rem;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+.form :global(.btn) {
+  margin-top: 1rem;
+}
+
+.error {
+  margin: 0.5rem 0 0;
+  padding: 0.75rem 1rem;
+  border-radius: 12px;
+  background: var(--tint-red);
+  color: var(--danger);
+  font-weight: 600;
+}

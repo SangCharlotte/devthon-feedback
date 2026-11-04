@@ -1,0 +1,60 @@
+.stroke {
+  position: absolute;
+  top: -34px;
+  right: -84px;
+  z-index: -1;
+  width: 290px;
+  height: 120px;
+  transform: rotate(160deg);
+  animation: paint-in 700ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.body {
+  padding-top: 28px;
+}
+
+.title {
+  margin: 0;
+  font-size: clamp(2.6rem, 12vw, 3.1rem);
+  font-weight: 800;
+  letter-spacing: -0.035em;
+}
+
+.lead {
+  max-width: 14ch;
+  margin: 0.4rem 0 0;
+  font-size: clamp(1.4rem, 6.2vw, 1.65rem);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.art {
+  width: calc(100% + 24px);
+  margin: auto -12px;
+  padding: 8px 0 12px;
+}
+
+.note {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+  text-align: center;
+  color: var(--muted);
+}
+
+.meta {
+  margin: 0.25rem 0 0;
+  font-size: 0.85rem;
+  text-align: center;
+  color: var(--muted);
+}
+
+@keyframes paint-in {
+  from {
+    clip-path: inset(0 0 0 100%);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}

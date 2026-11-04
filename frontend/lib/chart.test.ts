@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { donutArcs, linearScale, linePath, percent, shortDate, tickIndexes } from "./chart";
+import { donutArcs, linearScale, linePath, percent, shortDate, smoothPath, tickIndexes } from "./chart";
 
 describe("linearScale", () => {
   it("maps scores onto an upside-down pixel axis", () => {
@@ -19,6 +19,33 @@ describe("linePath", () => {
 
   it("is empty when there is no data", () => {
     expect(linePath([null, null])).toBe("");
+  });
+});
+
+describe("smoothPath", () => {
+  const numbers = (d: string) => d.match(/-?[\d.]+/g)!.map(Number);
+
+  it("curves through every point and lifts the pen over gaps", () => {
+    const path = smoothPath([{ x: 0, y: 10 }, { x: 10, y: 20 }, { x: 20, y: 0 }, null, { x: 40, y: 5 }]);
+    expect(path.startsWith("M0,10C")).toBe(true);
+    expect(path).toContain(" 10,20C");
+    expect(path).toContain(" 20,0M40,5");
+  });
+
+  it("never overshoots the data, so a share stays between 0% and 100%", () => {
+    const path = smoothPath([
+      { x: 0, y: 0 },
+      { x: 10, y: 100 },
+      { x: 20, y: 100 },
+      { x: 30, y: 0 },
+    ]);
+    const ys = numbers(path).filter((_, i) => i % 2 === 1);
+    expect(Math.min(...ys)).toBeGreaterThanOrEqual(0);
+    expect(Math.max(...ys)).toBeLessThanOrEqual(100);
+  });
+
+  it("draws a lone point as a bare move, for a dot to mark", () => {
+    expect(smoothPath([null, { x: 5, y: 5 }, null])).toBe("M5,5");
   });
 });
 

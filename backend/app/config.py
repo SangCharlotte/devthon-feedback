@@ -1,4 +1,5 @@
 from functools import lru_cache
+from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -27,18 +28,20 @@ class Settings(BaseSettings):
     at_username: str = "sandbox"
     at_api_key: str = ""
     at_sender_id: str = ""  # optional shortcode / sender name
-    at_webhook_token: str = ""  # shared secret expected on the inbound SMS callback URL
+    at_webhook_token: str = ""  # shared secret expected on the inbound SMS and USSD callback URLs
+    at_ussd_code: str = ""  # e.g. *384*1234#, mentioned in SMS invites when set
 
     # AI layer (optional). Empty key = AI features switched off; everything else still works.
+    ai_provider: Literal["anthropic", "openai"] = "anthropic"
     ai_api_key: str = ""
-    ai_model: str = "claude-opus-5-5"
+    ai_model: str = ""  # empty = the provider's default (see app.ai.DEFAULT_MODELS)
     ai_timeout_seconds: float = 30.0
     # Try the AI screens without a key: keyword rules stand in for the AI (clearly labelled).
     ai_demo_mode: bool = False
 
-    # Admin dashboard login. Generate the hash with: python -m app.auth hash-password
+    # Owner login for the admin dashboard. Hashed into the staff table at startup.
     admin_username: str = "admin"
-    admin_password_hash: str = ""
+    admin_password: str = ""
     session_secret: str = ""  # signs login cookies; long random string
     session_hours: int = 8
     cookie_secure: bool = False  # True in staging/production (HTTPS only)

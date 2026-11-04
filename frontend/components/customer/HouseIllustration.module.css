@@ -1,0 +1,111 @@
+/* Illustration palette. The house stays light in both themes; at night its windows glow. */
+.art {
+  --house-wall: #fffdf8;
+  --house-wall-alt: #f1ebe0;
+  --house-trim: #2c3a31;
+  --house-window: #cfe6e4;
+  --house-wood: #c8834a;
+  --house-wood-line: #a9683a;
+  --house-sky: var(--tint-yellow);
+  --house-lawn: #cfe8c6;
+  --house-trunk: #8a5a3a;
+  --house-cloud: #ffffff;
+
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+:global(:root[data-theme="dark"]) .art {
+  --house-wall: #e9e3d6;
+  --house-wall-alt: #d6cfc0;
+  --house-trim: #0b120d;
+  --house-window: #f4c95d;
+  --house-sky: #1f2b3a;
+  --house-lawn: #22382a;
+  --house-cloud: #2e3c4c;
+}
+
+@media (prefers-color-scheme: dark) {
+  :global(:root:not([data-theme="light"])) .art {
+    --house-wall: #e9e3d6;
+    --house-wall-alt: #d6cfc0;
+    --house-trim: #0b120d;
+    --house-window: #f4c95d;
+    --house-sky: #1f2b3a;
+    --house-lawn: #22382a;
+    --house-cloud: #2e3c4c;
+  }
+}
+
+.blob {
+  fill: var(--house-sky);
+}
+
+.sun {
+  fill: var(--yellow);
+}
+
+.cloud {
+  fill: var(--house-cloud);
+}
+
+.lawn {
+  fill: var(--house-lawn);
+}
+
+.trunk {
+  fill: var(--house-trunk);
+}
+
+.treeDark {
+  fill: var(--brand);
+}
+
+.treeLight {
+  fill: var(--leaf);
+}
+
+.wall {
+  fill: var(--house-wall);
+}
+
+.wallAlt {
+  fill: var(--house-wall-alt);
+}
+
+.wood {
+  fill: var(--house-wood);
+}
+
+.woodLine,
+.mullion {
+  fill: none;
+  stroke-width: 2;
+}
+
+.woodLine {
+  stroke: var(--house-wood-line);
+}
+
+.mullion {
+  stroke: var(--house-trim);
+}
+
+.trim {
+  fill: var(--house-trim);
+}
+
+.window {
+  fill: var(--house-window);
+  stroke: var(--house-trim);
+  stroke-width: 3;
+}
+
+.door {
+  fill: var(--brand);
+}
+
+.knob {
+  fill: var(--yellow);
+}

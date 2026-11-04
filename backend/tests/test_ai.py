@@ -6,7 +6,7 @@ import pytest
 
 from app import ai, mailer
 from app.ai import CommentTags, FeedbackSummary, ReplyDraft, Sentiment, Theme, Topic
-from app.models import Customer
+from app.models import Channel, Customer, Segment
 from app.routers import ai as ai_router
 from app.services.feedback import record_response
 
@@ -58,7 +58,7 @@ def test_request_uses_structured_output_and_refusal_fallback(client, fake_claude
     client.post("/feedback", json=FEEDBACK)
 
     request = fake_claude.requests[0]
-    assert request["model"] == settings.ai_model == "claude-opus-5-5"
+    assert request["model"] == "claude-opus-5-5"  # the provider default
     assert request["output_format"] is CommentTags
     assert request["fallbacks"] == "default"
     assert request["betas"] == ["server-side-fallback-2026-07-01"]
@@ -192,7 +192,16 @@ def test_summary_needs_comments(client, fake_claude):
 def test_summary_unavailable_without_ai(client, db_session):
     customer = Customer(name="A", email="a@example.com")
     db_session.add(customer)
-    record_response(db_session, customer, q1=3, q2=3, q3=3, channel="web", comment="ok")
+    record_response(
+        db_session,
+        customer,
+        q1=3,
+        q2=3,
+        q3=3,
+        channel=Channel.WEB,
+        segment=Segment.HOMEOWNER,
+        comment="ok",
+    )
     response = client.post("/ai/summary")
     assert response.status_code == 503
     assert "not configured" in response.json()["detail"]
