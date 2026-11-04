@@ -18,7 +18,7 @@ log = logging.getLogger(__name__)
 
 def notify_detractor(alert_id: int) -> None:
     """Dispatches alert notifications via email and SMS configurations.
-    Enforces complete exception isolation to prevent third-party gateway 
+    Enforces complete exception isolation to prevent third-party gateway
     failures from interrupting the core transaction flow.
     """
     try:
@@ -75,5 +75,6 @@ Average score: {response.mean} / 5
 
 Comment: {response.comment or "-"}
 
-System Alert: Update operational status to 'Resolved' within the management terminal post-remediation.
+System Alert: Update operational status to 'Resolved' within the management
+terminal post-remediation.
 """

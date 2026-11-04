@@ -19,7 +19,7 @@ API = "http://127.0.0.1:8000"
 
 def main() -> None:
     if len(sys.argv) < 2:
-        sys.exit('usage: python -m app.simulate_ussd <phone> [answer ...], e.g. 0712345678 4 5 4 0')
+        sys.exit("usage: python -m app.simulate_ussd <phone> [answer ...], e.g. 0712345678 4 5 4 0")
     phone, answers = sys.argv[1], sys.argv[2:]
     session = f"SIM{uuid.uuid4().hex[:12]}"
     for count in range(len(answers) + 1):

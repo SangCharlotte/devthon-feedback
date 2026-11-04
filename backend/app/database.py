@@ -30,8 +30,8 @@ class Base(DeclarativeBase):
 
 def get_db() -> Generator[Session, None, None]:
     """Yields an isolated transactional scope context manager.
-Guarantees absolute connection closure upon request lifecycle termination.
-"""
+    Guarantees absolute connection closure upon request lifecycle termination.
+    """
     db = SessionLocal()
     try:
         yield db

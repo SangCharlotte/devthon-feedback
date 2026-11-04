@@ -14,7 +14,8 @@ class FailureLimiter:
     def __init__(self, limit: int, window_seconds: float, clock=time.monotonic):
         self.limit = limit
         self.window = window_seconds
-        self._clock = clock  # Injectable clock provider reference to facilitate deterministic unit testing simulations
+        # Injectable clock so tests can control time deterministically.
+        self._clock = clock
         self._failures: dict[str, deque[float]] = {}
         # Mitigate race conditions arising from concurrent FastAPI worker execution pool contexts
         self._lock = threading.Lock()
@@ -26,7 +27,8 @@ class FailureLimiter:
         if times:
             self._failures[key] = times
         else:
-            self._failures.pop(key, None)  # Clean up empty tracking keys to optimize resource utilization
+            # Drop empty tracking keys so memory does not grow unbounded.
+            self._failures.pop(key, None)
         return times
 
     def retry_after(self, key: str) -> int:

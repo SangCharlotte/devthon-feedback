@@ -86,8 +86,10 @@ def seed(days: int, per_day: int) -> int:
                 comment = rng.choice(COMMENTS)
                 tags = ai_demo.tag(comment) if comment else None
                 # 06:00-15:59 UTC, i.e. 09:00-18:59 in Nairobi: business hours, same local day.
-                created_at = today - timedelta(days=days_ago) + timedelta(
-                    hours=6, minutes=rng.randrange(600)
+                created_at = (
+                    today
+                    - timedelta(days=days_ago)
+                    + timedelta(hours=6, minutes=rng.randrange(600))
                 )
                 response = FeedbackResponse(
                     customer=customer,

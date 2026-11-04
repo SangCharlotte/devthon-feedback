@@ -81,9 +81,9 @@ class FeedbackResponse(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     customer_id: Mapped[int] = mapped_column(ForeignKey("customers.id"), index=True)
-    q1: Mapped[int] = mapped_column(SmallInteger) 
-    q2: Mapped[int] = mapped_column(SmallInteger)  
-    q3: Mapped[int] = mapped_column(SmallInteger) 
+    q1: Mapped[int] = mapped_column(SmallInteger)
+    q2: Mapped[int] = mapped_column(SmallInteger)
+    q3: Mapped[int] = mapped_column(SmallInteger)
     mean: Mapped[Decimal] = mapped_column(Numeric(3, 2))
     category: Mapped[Category] = mapped_column(_string_enum(Category, "category"), index=True)
     channel: Mapped[Channel] = mapped_column(_string_enum(Channel, "channel"))
@@ -124,7 +124,7 @@ class Alert(Base):
 
 
 class Role(StrEnum):
-    MANAGER = "manager" 
+    MANAGER = "manager"
     REP = "rep"
 
 

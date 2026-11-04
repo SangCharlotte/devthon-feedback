@@ -175,7 +175,7 @@ export function Dashboard() {
           <h2 id="password-title" className={styles.cardTitle}>
             Change your password
           </h2>
-          <PasswordForm onDone={() => setShowPassword(false)} onError={handleError} />
+          <PasswordForm onError={handleError} />
         </section>
       )}
 
@@ -241,7 +241,7 @@ export function Dashboard() {
           <h2 id="invite-title" className={styles.cardTitle}>
             Invite by SMS
           </h2>
-          <SmsInvite onError={handleError} />
+          <SmsInvite />
         </section>
 
         <section className={`card ${styles.logCard}`} aria-labelledby="log-title">
