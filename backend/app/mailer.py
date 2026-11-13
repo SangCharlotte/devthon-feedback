@@ -1,10 +1,24 @@
 import logging
 import smtplib
 from email.message import EmailMessage
+from typing import Literal
 
 from app.config import get_settings
 
 log = logging.getLogger(__name__)
+
+# Local catch-all servers: they accept every email and deliver none of it.
+TEST_SMTP_HOSTS = {"mailpit", "mailhog", "localhost", "127.0.0.1", "::1"}
+
+DeliveryMode = Literal["live", "test", "off"]
+
+
+def delivery_mode() -> DeliveryMode:
+    """'test' means emails are caught locally (e.g. Mailpit) and never reach customers."""
+    host = get_settings().smtp_host.strip().lower()
+    if not host:
+        return "off"
+    return "test" if host in TEST_SMTP_HOSTS else "live"
 
 
 def send_email(to: str, subject: str, body: str) -> bool:

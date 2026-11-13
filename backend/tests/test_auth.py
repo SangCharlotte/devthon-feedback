@@ -26,6 +26,7 @@ PROTECTED = [
     ("post", "/ai/summary"),
     ("post", "/alerts/1/draft"),
     ("post", "/alerts/1/reply"),
+    ("get", "/alerts/delivery"),
     ("get", "/staff"),
     ("post", "/staff"),
     ("patch", "/staff/1"),

@@ -127,6 +127,15 @@
   font-weight: 600;
 }
 
+.warning {
+  margin: 0.5rem 0;
+  padding: 0.75rem 1rem;
+  border-radius: 12px;
+  background: var(--tint-yellow);
+  color: var(--text);
+  font-weight: 600;
+}
+
 .aiNote {
   margin: 0.5rem 0;
   color: var(--muted);

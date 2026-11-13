@@ -10,7 +10,7 @@ from app.ai import ReplyDraft
 from app.auth import Staff, require_staff
 from app.database import DbSession
 from app.models import Alert, AlertStatus, FeedbackResponse
-from app.schemas import AlertOut, AlertUpdate, ReplyIn
+from app.schemas import AlertOut, AlertUpdate, DeliveryStatusOut, ReplyIn
 
 # Every route in this router requires a logged-in admin.
 router = APIRouter(prefix="/alerts", tags=["alerts"], dependencies=[Depends(require_staff)])
@@ -34,6 +34,12 @@ def list_alerts(
     if status is not None:
         stmt = stmt.where(Alert.status == status)
     return [AlertOut.from_alert(alert) for alert in db.scalars(stmt)]
+
+
+@router.get("/delivery")
+def delivery_status() -> DeliveryStatusOut:
+    """Lets the reply composer warn when emails or SMS won't really reach the customer."""
+    return DeliveryStatusOut(email=mailer.delivery_mode(), sms=sms.delivery_mode())
 
 
 @router.patch("/{alert_id}")

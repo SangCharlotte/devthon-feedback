@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useState } from "react";
 
-import { adminApi, UnauthorizedError, type AlertItem } from "@/lib/admin";
+import { adminApi, UnauthorizedError, type AlertItem, type DeliveryStatus } from "@/lib/admin";
 
 import styles from "./admin.module.css";
 
@@ -26,9 +26,22 @@ export function ReplyComposer({ alert, aiEnabled, onSent, onCancel, onError }: P
   const [fromAi, setFromAi] = useState(false);
   const [sending, setSending] = useState(false);
   const [note, setNote] = useState<string | null>(null);
+  const [delivery, setDelivery] = useState<DeliveryStatus | null>(null);
   // No email (e.g. feature-phone customers): the backend sends the body by SMS instead.
   const viaSms = !alert.customer_email;
   const recipient = alert.customer_email ?? alert.customer_phone;
+
+  useEffect(() => {
+    let cancelled = false;
+    // Best effort: if the check fails we simply show no warning.
+    adminApi.deliveryStatus().then(
+      (status) => !cancelled && setDelivery(status),
+      () => {},
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (!aiEnabled) return;
@@ -67,6 +80,12 @@ export function ReplyComposer({ alert, aiEnabled, onSent, onCancel, onError }: P
     }
   }
 
+  const notDelivered = viaSms
+    ? delivery?.sms === "sandbox" &&
+      "SMS is in sandbox mode (AT_USERNAME=sandbox): this customer won't receive the text."
+    : delivery?.email === "test" &&
+      "Email is in test mode (Mailpit): this customer won't receive the reply. Set a real SMTP provider in .env.";
+
   const ready = (viaSms || subject.trim() !== "") && body.trim() !== "" && !drafting && !sending;
 
   return (
@@ -79,6 +98,11 @@ export function ReplyComposer({ alert, aiEnabled, onSent, onCancel, onError }: P
         fromAi && (
           <p className={styles.aiNote}>✦ AI draft. Read it, make it yours, then send. Nothing is sent until you do.</p>
         )
+      )}
+      {notDelivered && (
+        <p className={styles.warning} role="note">
+          ⚠ {notDelivered}
+        </p>
       )}
       {!viaSms && (
         <>

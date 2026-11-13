@@ -2,6 +2,7 @@
 
 import logging
 import re
+from typing import Literal
 
 import httpx
 
@@ -14,6 +15,14 @@ LIVE_URL = "https://api.africastalking.com/version1/messaging"
 
 # Three ratings 1-5 separated by spaces or commas, optionally followed by a comment.
 _REPLY = re.compile(r"\s*([1-5])[\s,]+([1-5])[\s,]+([1-5])(?:\s+(\S.*?))?\s*", re.DOTALL)
+
+
+def delivery_mode() -> Literal["live", "sandbox", "off"]:
+    """'sandbox' means Africa's Talking accepts the SMS but never delivers it to a real phone."""
+    settings = get_settings()
+    if not settings.at_api_key:
+        return "off"
+    return "sandbox" if settings.at_username == "sandbox" else "live"
 
 
 def send_sms(to: str, message: str) -> bool:

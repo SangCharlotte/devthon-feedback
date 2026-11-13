@@ -1,3 +1,4 @@
+import pytest
 from sqlalchemy import func, select
 
 from app import mailer
@@ -93,3 +94,23 @@ def test_send_email_returns_false_when_server_unreachable(monkeypatch):
     monkeypatch.setattr(settings, "smtp_starttls", False)
 
     assert mailer.send_email("care@companyx.test", "subject", "body") is False
+
+
+@pytest.mark.parametrize(
+    ("host", "expected"),
+    [("mailpit", "test"), ("localhost", "test"), ("", "off"), ("smtp.example.com", "live")],
+)
+def test_delivery_status_flags_test_mail_servers(client, settings, monkeypatch, host, expected):
+    # Mailpit accepts every email and delivers none: the composer must warn the rep.
+    monkeypatch.setattr(settings, "smtp_host", host)
+    assert client.get("/alerts/delivery").json()["email"] == expected
+
+
+@pytest.mark.parametrize(
+    ("username", "key", "expected"),
+    [("sandbox", "k", "sandbox"), ("companyx", "k", "live"), ("companyx", "", "off")],
+)
+def test_delivery_status_flags_sms_sandbox(client, settings, monkeypatch, username, key, expected):
+    monkeypatch.setattr(settings, "at_username", username)
+    monkeypatch.setattr(settings, "at_api_key", key)
+    assert client.get("/alerts/delivery").json()["sms"] == expected

@@ -109,6 +109,8 @@ export type ResponseItem = {
 };
 
 export type ReplyDraft = { subject: string; body: string };
+/** "test"/"sandbox": the message is accepted but never reaches the customer. */
+export type DeliveryStatus = { email: "live" | "test" | "off"; sms: "live" | "sandbox" | "off" };
 
 export type AiSummary = {
   headline: string;
@@ -224,6 +226,7 @@ export const adminApi = {
   aiStatus: () => request<{ enabled: boolean; demo: boolean }>("/ai/status"),
   summarize: (days: number) => request<AiSummary>(`/ai/summary${queryString({ days })}`, { method: "POST" }),
   draftReply: (alertId: number) => request<ReplyDraft>(`/alerts/${alertId}/draft`, { method: "POST" }),
+  deliveryStatus: () => request<DeliveryStatus>("/alerts/delivery"),
   sendReply: (alertId: number, reply: ReplyDraft) =>
     request<AlertItem>(`/alerts/${alertId}/reply`, { method: "POST", body: JSON.stringify(reply) }),
   inviteBySms: (name: string, phone: string) =>

@@ -367,6 +367,23 @@ describe("Alerts", () => {
     });
   });
 
+  it("warns when emails are only caught by Mailpit", async () => {
+    stubApi((url) => (url.pathname === "/api/alerts/delivery" ? json({ email: "test", sms: "live" }) : undefined));
+    render(<ReplyComposer alert={ALERT} aiEnabled={false} onSent={vi.fn()} onCancel={vi.fn()} onError={vi.fn()} />);
+
+    expect(await screen.findByRole("note")).toHaveTextContent("this customer won't receive the reply");
+  });
+
+  it("shows no delivery warning when email is live", async () => {
+    const fetchMock = stubApi((url) =>
+      url.pathname === "/api/alerts/delivery" ? json({ email: "live", sms: "sandbox" }) : undefined,
+    );
+    render(<ReplyComposer alert={ALERT} aiEnabled={false} onSent={vi.fn()} onCancel={vi.fn()} onError={vi.fn()} />);
+
+    await waitFor(() => expect(calledWith(fetchMock, (url) => url.pathname === "/api/alerts/delivery")).toBe(true));
+    expect(screen.queryByRole("note")).not.toBeInTheDocument();
+  });
+
   it("lets the rep write the reply themselves when the AI fails", async () => {
     stubApi(() => json({ detail: "AI draft unavailable" }, 503));
     render(<ReplyComposer alert={ALERT} aiEnabled onSent={vi.fn()} onCancel={vi.fn()} onError={vi.fn()} />);

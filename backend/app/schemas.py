@@ -1,7 +1,7 @@
 """Request/response shapes for the API (what JSON goes in and comes out)."""
 
 from datetime import date, datetime
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import (
     AfterValidator,
@@ -301,6 +301,13 @@ class ResponsePage(BaseModel):
 
 
 # ---------- AI assistance ----------
+
+
+class DeliveryStatusOut(BaseModel):
+    """Whether replies actually reach customers, so the dashboard can warn when they won't."""
+
+    email: Literal["live", "test", "off"]
+    sms: Literal["live", "sandbox", "off"]
 
 
 class AiStatusOut(BaseModel):

@@ -1,3 +1,4 @@
+import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -6,16 +7,32 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
+from app import mailer, sms
 from app.auth import sync_owner_on_startup
 from app.config import get_settings
 from app.database import DbSession
-from app.routers import ai, alerts, auth, feedback, insights, sms, staff, ussd
+from app.routers import ai, alerts, auth, feedback, insights, staff, ussd
+from app.routers import sms as sms_router
+
+log = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     sync_owner_on_startup()
+    _warn_if_replies_wont_be_delivered()
     yield
+
+
+def _warn_if_replies_wont_be_delivered() -> None:
+    if mailer.delivery_mode() == "test":
+        log.warning(
+            "SMTP_HOST=%s is a local test server: emails are caught there and never "
+            "reach customers. Set a real SMTP provider in .env to deliver replies.",
+            get_settings().smtp_host,
+        )
+    if sms.delivery_mode() == "sandbox":
+        log.warning("AT_USERNAME=sandbox: SMS replies will not reach real phones.")
 
 
 app = FastAPI(title="Company X Feedback API", version="0.1.0", lifespan=lifespan)
@@ -32,7 +49,7 @@ app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=get_settings().trusted_
 
 app.include_router(feedback.router)
 app.include_router(alerts.router)
-app.include_router(sms.router)
+app.include_router(sms_router.router)
 app.include_router(auth.router)
 app.include_router(insights.router)
 app.include_router(ai.router)
